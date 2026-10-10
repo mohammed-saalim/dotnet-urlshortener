@@ -1,0 +1,19 @@
+<Project>
+
+  <!-- Quality gates applied to every project. See CLAUDE.md §8. -->
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Required for IDE0005 (unused usings) to run at build time; CS1591 (missing XML docs) is noise for an app. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- CA5394: System.Random is not cryptographically secure. Off by default; short codes must use RandomNumberGenerator. -->
+    <WarningsAsErrors>$(WarningsAsErrors);CA5394</WarningsAsErrors>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+  </PropertyGroup>
+
+</Project>

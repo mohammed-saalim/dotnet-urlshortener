@@ -25,3 +25,16 @@ dotnet format --verify-no-changes
 
 ## Notes for the interview
 <!-- Trade-offs taken, alternatives rejected, anything a reviewer should question. -->
+
+## Walkthrough (read this before the diff)
+### Files, in reading order
+1. `path` — what it does and why it exists
+2.
+
+### See it working locally
+```
+gh pr checkout N
+docker compose up -d
+dotnet run --project src/UrlShortener.Api
+curl ...
+```
