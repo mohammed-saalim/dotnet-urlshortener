@@ -1,9 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using UrlShortener.Api.Data;
+using UrlShortener.Api.Links;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.AddProblemDetails();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(new GenerateShortCode(ShortCode.Generate));
 builder.Services.AddDbContext<LinksDbContext>(options => options.UseSqlServer(
     builder.Configuration.GetConnectionString("UrlShortener"),
     sql => sql.EnableRetryOnFailure()));
@@ -26,7 +30,16 @@ if (app.Environment.IsDevelopment())
     await scope.ServiceProvider.GetRequiredService<LinksDbContext>().Database.MigrateAsync();
 }
 
+// Outside Development only: in Development the Developer Exception Page (added by WebApplication) handles exceptions
+// and keeps BadHttpRequestException's 400; an unconditional UseExceptionHandler sits inside it and turns that into 500.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler();
+}
+
 app.UseHttpsRedirection();
+
+app.MapGroup("/api/links").MapPost("/", CreateLinkEndpoint.HandleAsync);
 
 app.Run();
 
