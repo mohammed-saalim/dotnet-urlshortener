@@ -7,7 +7,7 @@ using UrlShortener.Api.Links;
 namespace UrlShortener.IntegrationTests;
 
 /// <summary>
-/// The real app (Development environment, so startup migration runs) against the test class's SQL Server container.
+/// The real app (Development environment by default, so startup migration runs) against the test class's SQL Server container.
 /// Created per test rather than as a class fixture, because it needs the container's connection string and,
 /// for the retry tests, a scripted sequence of codes.
 /// </summary>
@@ -18,10 +18,14 @@ public sealed class ApiFactory(string connectionString, params string[] codes) :
     /// <summary>How many scripted codes the app asked for; lets the retry tests assert the exact attempt count.</summary>
     public int CodesGenerated { get; private set; }
 
+    /// <summary>"Production" covers the production error pipeline and skips startup migration (no database needed).</summary>
+    public string EnvironmentName { get; init; } = "Development";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // Host setting, so it is visible when Program.cs reads configuration (before the host is built).
         builder.UseSetting("ConnectionStrings:UrlShortener", connectionString);
+        builder.UseEnvironment(EnvironmentName);
 
         builder.ConfigureTestServices(services =>
         {

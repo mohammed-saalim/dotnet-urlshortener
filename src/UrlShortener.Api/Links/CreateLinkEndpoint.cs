@@ -10,7 +10,7 @@ public sealed record CreateLinkRequest(string? Url, string? CustomAlias = null, 
 public sealed record LinkResponse(
     string Code, string ShortUrl, string Url, DateTimeOffset CreatedAt, DateTimeOffset? ExpiresAt);
 
-public static class CreateLinkEndpoint
+public static partial class CreateLinkEndpoint
 {
     // A collision is rare (62^7 codes) and five in a row means something is broken, so stop and surface a 500.
     public const int MaxGeneratedCodeAttempts = 5;
@@ -21,6 +21,7 @@ public static class CreateLinkEndpoint
         GenerateShortCode generateCode,
         TimeProvider timeProvider,
         HttpRequest httpRequest,
+        ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
@@ -66,6 +67,9 @@ public static class CreateLinkEndpoint
             }
         }
 
+        // Host only: the full URL can carry tokens or personal data in its path and query.
+        LogCreated(loggerFactory.CreateLogger(typeof(CreateLinkEndpoint)), link.Code, new Uri(link.OriginalUrl).Host);
+
         var body = new LinkResponse(
             link.Code,
             $"{httpRequest.Scheme}://{httpRequest.Host}/{link.Code}",
@@ -74,6 +78,10 @@ public static class CreateLinkEndpoint
             link.ExpiresAt);
         return TypedResults.Created($"/api/links/{link.Code}", body);
     }
+
+    // Source-generated: CA1848 (an error under latest-recommended + TreatWarningsAsErrors) rejects LogInformation(...).
+    [LoggerMessage(Level = LogLevel.Information, Message = "Created short link {Code} for host {Host}")]
+    private static partial void LogCreated(ILogger logger, string code, string host);
 
     // 2601: duplicate key in a unique index; 2627: unique/primary key constraint violation.
     private static bool IsUniqueViolation(DbUpdateException ex) =>
