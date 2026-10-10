@@ -29,3 +29,7 @@ csharp_prefer_braces = true:warning
 csharp_using_directive_placement = outside_namespace:warning
 dotnet_diagnostic.IDE0005.severity = warning   # unused usings
 dotnet_diagnostic.IDE0055.severity = warning   # formatting
+
+# EF Core migrations are tool output (dotnet ef); regenerate rather than hand-edit, so exclude them from style rules.
+[src/UrlShortener.Api/Migrations/*.cs]
+generated_code = true
