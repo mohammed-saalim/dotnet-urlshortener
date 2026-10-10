@@ -285,3 +285,14 @@ $ dotnet build -c Release --nologo -v q
 $ dotnet test -c Release --no-build --nologo
 Passed!  - 47 unit, 25 integration
 ```
+
+### Second CI failure and the actual cause (coordinator)
+The `IsEnabled` guard was not enough: CI still reported CA1873 at `new Uri(link.OriginalUrl).Host` inside the guard, while the same code built clean locally in Release. The CI log shows `actions/setup-dotnet` resolved `10.0.x` to **SDK 10.0.401**; the local SDK is **10.0.101**. The newer SDK ships stricter analyzers, so "Release-only" was a wrong diagnosis (corrected in CLAUDE.md §9).
+
+Fixes: the host is computed into a local before the log call; `global.json` pins SDK `10.0.101` (`rollForward: latestPatch`) and `ci.yml` installs from it (`global-json-file`). Local and CI now compile with the same analyzers.
+```
+$ dotnet build -c Release --nologo -v q
+    0 Error(s)
+$ dotnet test -c Release --no-build --nologo
+Passed!  - 47 unit, 25 integration
+```

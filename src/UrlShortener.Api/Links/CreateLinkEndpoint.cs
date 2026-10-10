@@ -72,7 +72,8 @@ public static partial class CreateLinkEndpoint
         var logger = loggerFactory.CreateLogger(typeof(CreateLinkEndpoint));
         if (logger.IsEnabled(LogLevel.Information))
         {
-            LogCreated(logger, link.Code, new Uri(link.OriginalUrl).Host);
+            var host = new Uri(link.OriginalUrl).Host; // a local: CA1873 inspects log arguments, not the guard
+            LogCreated(logger, link.Code, host);
         }
 
         var body = new LinkResponse(
