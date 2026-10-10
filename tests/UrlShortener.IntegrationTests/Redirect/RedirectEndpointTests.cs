@@ -63,16 +63,21 @@ public sealed class RedirectEndpointTests(SqlServerFixture fixture) : IClassFixt
     }
 
     [Fact]
-    public async Task RedirectRouteDoesNotShadowApiOrOpenApi()
+    public async Task RedirectRouteDoesNotShadowApiOpenApiHealthOrScalar()
     {
         using var factory = new ApiFactory(fixture.ConnectionString);
         using var client = factory.CreateClient(NoRedirects);
 
         var created = await client.PostAsJsonAsync("/api/links", new { url = "https://example.com/" });
         var openApi = await client.GetAsync("/openapi/v1.json");
+        var health = await client.GetAsync("/health/live");
+        // One segment, so it matches the code pattern; the literal route wins and Scalar adds its trailing slash.
+        var scalar = await client.GetAsync("/scalar");
 
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         Assert.Equal(HttpStatusCode.OK, openApi.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, health.StatusCode);
+        Assert.Equal("scalar/", scalar.Headers.Location?.OriginalString);
     }
 
     private async Task InsertLinkAsync(string code, string url, DateTimeOffset? deletedAt = null)

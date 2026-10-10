@@ -78,7 +78,7 @@ Repo map: `src/UrlShortener.Api` (feature folders `Links/`, `Redirect/`, `Analyt
 Commands:
 ```
 docker compose up -d                       # local SQL Server
-dotnet build                               # warnings are errors
+dotnet build -c Release                    # warnings are errors; Release, because some analyzers only fire there
 dotnet test                                # unit + integration (needs Docker)
 dotnet format --verify-no-changes
 dotnet list package --vulnerable
@@ -142,4 +142,6 @@ azd up / azd down                          # cloud deploy / teardown
 - **`Read(...)` deny rules do not cover Bash.** `cat .env` in a shell still works, so the deny rules prevent accidental reads by the file tools, not deliberate ones. Real protection is: secrets never exist in the repo (user-secrets, env vars, managed identity).
 - **Git Bash rewrites container paths** in `docker compose exec ... /opt/mssql-tools18/bin/sqlcmd` to `C:/Program Files/Git/opt/...`. Prefix with `MSYS_NO_PATHCONV=1`.
 - **`Uri.TryCreate(s, UriKind.Absolute, ...)` accepts leading/trailing spaces, tabs and embedded CR/LF**, silently trimming or percent-encoding them in the parsed `Uri`. The raw string is what gets stored and later becomes the redirect `Location` header, so the validator rejects whitespace and control characters explicitly.
-- **An unconditional `app.UseExceptionHandler()` breaks Development 400s.** It sits inside the Developer Exception Page, catches `BadHttpRequestException` (malformed JSON, thrown because `ThrowOnBadRequest` is on in Development) and returns 500. Register it outside Development only (the template shape).
+- **An unconditional `app.UseExceptionHandler()` breaks Development 400s** unless it has a `StatusCodeSelector`. It sits inside the Developer Exception Page, catches `BadHttpRequestException` (malformed JSON, thrown because `ThrowOnBadRequest` is on in Development only) and returns 500. Production never throws there: it writes a bare 400 with no body, which only `UseStatusCodePages()` turns into ProblemDetails. Both are needed for ProblemDetails everywhere (AI log 005).
+- **Analyzers differ between SDK versions, so local and CI must use the same SDK.** CA1873 (expensive logging argument) passed locally on SDK 10.0.101 and failed twice on CI, which had picked up 10.0.401 via `dotnet-version: 10.0.x` (PR #12). My first diagnosis ("only fires in Release") was wrong. Fix: `global.json` pins the SDK and CI reads it (`global-json-file`). Keep `dotnet build -c Release` as the local gate anyway, matching CI. For CA1873: compute log arguments into locals inside an `IsEnabled` guard.
+- **`CA1848` is an error here** (`latest-recommended` + `TreatWarningsAsErrors`): `logger.LogInformation(...)` does not build. Use `[LoggerMessage]` partial methods. Static endpoint classes cannot be `ILogger<T>` type arguments; inject `ILoggerFactory` and `CreateLogger(typeof(...))`.

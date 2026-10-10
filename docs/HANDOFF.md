@@ -3,9 +3,10 @@
 Read this first when resuming (any model, any session). Keep it to one screen; update at the end of every session.
 
 ## Where we are
-- **Phase:** Day 1 — G1 (#7), G2 (#8), G3 (#10) merged. G4 done by a delegated agent, reviewed, PR open. Next is G5 (#5), then G6 (#6) closes Day 1.
-- **Branch:** `feat/04-redirect`. `main` = G3.
-- **Last checks run:** build 0/0, format exit 0, 47 unit + 15 integration tests.
+- **Phase:** Day 1 — G1 (#7), G2 (#8), G3 (#10), G4 (#11) merged. G5 done by a delegated agent, reviewed, PR open. Next is G6 (#6, docs + ADRs 0001-0003), which closes Day 1.
+- **Branch:** `feat/05-api-surface`. `main` = G4.
+- **Last checks run:** build 0/0, format exit 0, 47 unit + 25 integration tests, no vulnerable packages.
+- **API now complete for Day 1:** POST/GET/DELETE `/api/links`, `GET /{code}`, `/health/live|ready`, `/openapi/v1.json`, `/scalar` (Development).
 - **New issue #9 (Day 2, high-impact):** public base URL / AllowedHosts / forwarded headers before the Azure deploy.
 - **Local DB for `dotnet run`:** engineer must set `MSSQL_SA_PASSWORD` (env or `.env`) and `dotnet user-secrets set "ConnectionStrings:UrlShortener" "..."` — commands in AI log 002.
 - **GitHub repo:** https://github.com/mohammed-saalim/dotnet-urlshortener (public). Issues #1–#6 = Day 1 tasks G1–G6, milestones Day 1/2/3, labels `scenario:*`, `type:*`, `risk:high-impact`.
@@ -15,8 +16,8 @@ Read this first when resuming (any model, any session). Keep it to one screen; u
 See `docs/plan.md` "Decisions" and `docs/research/reports/URL shortener assignment validation.md`. ADRs 0001-0003 are written in task G6.
 
 ## Next step
-1. Engineer reviews the G4 PR (low risk), merges.
-2. `git checkout main && git pull`, branch `feat/05-api-surface`, delegate G5 (#5). #5 now also owns the error pipeline items deferred from the #3 review (ProblemDetails for malformed JSON in all environments, a `UseEnvironment("Production")` test, optional shared factory). Keep G5 minimal: get/delete endpoints, health, Scalar UI, ProblemDetails, safe logging.
+1. Engineer reviews the G5 PR, merges.
+2. `git checkout main && git pull`, branch `docs/06-day1-docs`, delegate G6 (#6): `docs/SETUP.md`, `docs/scenarios/greenfield.md` (decomposition with a Mermaid dependency graph, execution summary pointing at AI logs 001-005, validation evidence), ADR-0001 stack/DB, ADR-0002 short codes/collation, ADR-0003 redirect semantics. Sources: `docs/plan.md`, `docs/research/reports/*.md`, the AI logs. Docs only, no code.
 
 ## Open questions for the engineer
 - Azure teardown date: ~1 week after the reviewer finishes (set a reminder when deploying).

@@ -80,6 +80,7 @@ public sealed class CreateLinkEndpointTests(SqlServerFixture fixture) : IClassFi
         var response = await client.PostAsync("/api/links", content);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
     [Fact]
