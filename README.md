@@ -2,7 +2,7 @@
 
 A URL shortener built as an **AI-assisted, engineer-led** engineering exercise: the engineer owns every decision and approves every output; Claude Code accelerates implementation, tests, docs and review preparation inside clearly scoped tasks.
 
-> Status: Day 0 — scaffold and plan. See `docs/HANDOFF.md` for where work currently stands.
+> Status: Day 1 complete — the core create/redirect service runs locally. Walkthrough and evidence: `docs/scenarios/greenfield.md`; run it with `docs/SETUP.md`. See `docs/HANDOFF.md` for where work currently stands.
 
 ## What this repo demonstrates
 
