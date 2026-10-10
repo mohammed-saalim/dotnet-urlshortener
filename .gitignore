@@ -5,6 +5,7 @@ docs/brief/*.pdf
 # Secrets
 .env
 .env.*
+!.env.example
 **/secrets.json
 *.pfx
 *.publishsettings

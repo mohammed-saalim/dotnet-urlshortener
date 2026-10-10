@@ -12,6 +12,10 @@
     <!-- Transitive pin: Microsoft.AspNetCore.OpenApi 10.0.1 depends on Microsoft.OpenApi >= 2.0.0, which carries
          GHSA-v5pm-xwqc-g5wc (high, patched in 2.7.5). NuGet audit fails the build without this pin. -->
     <PackageVersion Include="Microsoft.OpenApi" Version="2.12.2" />
+    <!-- G2 persistence, verified on nuget.org 2026-10-10 (see docs/ai-log/002-persistence.md) -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.16.0" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />

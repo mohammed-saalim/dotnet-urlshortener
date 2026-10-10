@@ -1,0 +1,23 @@
+# Local SQL Server for `dotnet run`. Tests do not use this; they start their own container (Testcontainers).
+# Password: export MSSQL_SA_PASSWORD in your shell or put it in a gitignored .env (see .env.example).
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      # No default on purpose: compose refuses to start without it.
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      # $$ defers expansion to the container's own environment. -C trusts the self-signed dev certificate.
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  sqlserver-data:
