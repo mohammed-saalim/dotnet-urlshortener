@@ -1,0 +1,30 @@
+# Employer-classified brief: never commit
+docs/brief/*.pdf
+**/*.pdf
+
+# Secrets
+.env
+.env.*
+**/secrets.json
+*.pfx
+*.publishsettings
+.azure/
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+coverage*/
+*.trx
+
+# Local tool state
+.remember/
+node_modules/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
