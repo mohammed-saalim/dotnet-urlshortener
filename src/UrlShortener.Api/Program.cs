@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using UrlShortener.Api.Data;
 using UrlShortener.Api.Links;
+using UrlShortener.Api.Redirect;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +41,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.MapGroup("/api/links").MapPost("/", CreateLinkEndpoint.HandleAsync);
+app.MapGet(RedirectEndpoint.Route, RedirectEndpoint.HandleAsync);
 
 app.Run();
 

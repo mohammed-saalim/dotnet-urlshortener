@@ -3,9 +3,9 @@
 Read this first when resuming (any model, any session). Keep it to one screen; update at the end of every session.
 
 ## Where we are
-- **Phase:** Day 1 — G1 (#7) and G2 (#8) merged. G3 done by a delegated agent, reviewed (2 findings fixed, 3 deferred to #5, 1 became #9), PR open. Next is G4 (#4).
-- **Branch:** `feat/03-create-link`. `main` = G2.
-- **Last checks run:** build 0/0, format exit 0, 47 unit + 10 integration tests, no vulnerable packages, `/security-review` (none) + `/code-review` (6 → triaged).
+- **Phase:** Day 1 — G1 (#7), G2 (#8), G3 (#10) merged. G4 done by a delegated agent, reviewed, PR open. Next is G5 (#5), then G6 (#6) closes Day 1.
+- **Branch:** `feat/04-redirect`. `main` = G3.
+- **Last checks run:** build 0/0, format exit 0, 47 unit + 15 integration tests.
 - **New issue #9 (Day 2, high-impact):** public base URL / AllowedHosts / forwarded headers before the Azure deploy.
 - **Local DB for `dotnet run`:** engineer must set `MSSQL_SA_PASSWORD` (env or `.env`) and `dotnet user-secrets set "ConnectionStrings:UrlShortener" "..."` — commands in AI log 002.
 - **GitHub repo:** https://github.com/mohammed-saalim/dotnet-urlshortener (public). Issues #1–#6 = Day 1 tasks G1–G6, milestones Day 1/2/3, labels `scenario:*`, `type:*`, `risk:high-impact`.
@@ -15,8 +15,8 @@ Read this first when resuming (any model, any session). Keep it to one screen; u
 See `docs/plan.md` "Decisions" and `docs/research/reports/URL shortener assignment validation.md`. ADRs 0001-0003 are written in task G6.
 
 ## Next step
-1. Engineer reviews the G3 PR (URL validation = high-impact), signs off, merges.
-2. `git checkout main && git pull`, branch `feat/04-redirect`, delegate G4 (#4). Heads-up for G4: stored URLs are guaranteed printable ASCII (validator), so they are safe to emit in `Location`; `ApiFactory` in the integration tests already injects the connection string and a fixed `TimeProvider`.
+1. Engineer reviews the G4 PR (low risk), merges.
+2. `git checkout main && git pull`, branch `feat/05-api-surface`, delegate G5 (#5). #5 now also owns the error pipeline items deferred from the #3 review (ProblemDetails for malformed JSON in all environments, a `UseEnvironment("Production")` test, optional shared factory). Keep G5 minimal: get/delete endpoints, health, Scalar UI, ProblemDetails, safe logging.
 
 ## Open questions for the engineer
 - Azure teardown date: ~1 week after the reviewer finishes (set a reminder when deploying).
