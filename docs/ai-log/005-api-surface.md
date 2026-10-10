@@ -276,3 +276,12 @@ Reviewed by the coordinator session (Claude Code, `claude-fable-5-1`); gates re-
 | `ILoggerFactory` + `[LoggerMessage]` because CA1848 is an error | accepted | Correct under `latest-recommended`; gotcha recorded |
 | Rewrote the earlier `UseExceptionHandler` gotcha | accepted | The old advice contradicted the new code |
 | Skipped shared factory per class and a `/health/ready` 503 test | accepted | Suite runs in ~2 s; a down-DB readiness test can come with B6 if useful |
+
+### CI failure after the first push (coordinator)
+CI's Release build failed with **CA1873** at the two new log calls (`loggerFactory.CreateLogger(...)` and `new Uri(...).Host` as log arguments); the local Debug build had not reported it. Fix: hoist the logger into a local and guard each call with `logger.IsEnabled(...)`. Prevention: the local gate and the Stop hook now build `-c Release` (`.claude/settings.json`, CLAUDE.md §5/§9). This PR is therefore marked high-impact (agent settings changed).
+```
+$ dotnet build -c Release --nologo -v q
+    0 Warning(s)   0 Error(s)
+$ dotnet test -c Release --no-build --nologo
+Passed!  - 47 unit, 25 integration
+```

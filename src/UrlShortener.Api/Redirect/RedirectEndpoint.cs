@@ -27,7 +27,11 @@ public static partial class RedirectEndpoint
 
         if (originalUrl is null)
         {
-            LogMiss(loggerFactory.CreateLogger(typeof(RedirectEndpoint)), code);
+            var logger = loggerFactory.CreateLogger(typeof(RedirectEndpoint));
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                LogMiss(logger, code);
+            }
             return TypedResults.NotFound(); // body written by UseStatusCodePages as ProblemDetails
         }
 

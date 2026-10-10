@@ -68,7 +68,12 @@ public static partial class CreateLinkEndpoint
         }
 
         // Host only: the full URL can carry tokens or personal data in its path and query.
-        LogCreated(loggerFactory.CreateLogger(typeof(CreateLinkEndpoint)), link.Code, new Uri(link.OriginalUrl).Host);
+        // IsEnabled guard: CA1873 (Release build) flags the Uri parse as wasted work when Information is off.
+        var logger = loggerFactory.CreateLogger(typeof(CreateLinkEndpoint));
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            LogCreated(logger, link.Code, new Uri(link.OriginalUrl).Host);
+        }
 
         var body = new LinkResponse(
             link.Code,

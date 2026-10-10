@@ -78,7 +78,7 @@ Repo map: `src/UrlShortener.Api` (feature folders `Links/`, `Redirect/`, `Analyt
 Commands:
 ```
 docker compose up -d                       # local SQL Server
-dotnet build                               # warnings are errors
+dotnet build -c Release                    # warnings are errors; Release, because some analyzers only fire there
 dotnet test                                # unit + integration (needs Docker)
 dotnet format --verify-no-changes
 dotnet list package --vulnerable
@@ -143,4 +143,5 @@ azd up / azd down                          # cloud deploy / teardown
 - **Git Bash rewrites container paths** in `docker compose exec ... /opt/mssql-tools18/bin/sqlcmd` to `C:/Program Files/Git/opt/...`. Prefix with `MSYS_NO_PATHCONV=1`.
 - **`Uri.TryCreate(s, UriKind.Absolute, ...)` accepts leading/trailing spaces, tabs and embedded CR/LF**, silently trimming or percent-encoding them in the parsed `Uri`. The raw string is what gets stored and later becomes the redirect `Location` header, so the validator rejects whitespace and control characters explicitly.
 - **An unconditional `app.UseExceptionHandler()` breaks Development 400s** unless it has a `StatusCodeSelector`. It sits inside the Developer Exception Page, catches `BadHttpRequestException` (malformed JSON, thrown because `ThrowOnBadRequest` is on in Development only) and returns 500. Production never throws there: it writes a bare 400 with no body, which only `UseStatusCodePages()` turns into ProblemDetails. Both are needed for ProblemDetails everywhere (AI log 005).
+- **Some analyzers only fire in Release.** CA1873 (expensive logging argument) passed a local Debug build and failed CI's `--configuration Release` build (PR #12). The local gate is `dotnet build -c Release`; the Stop hook builds Release too. Guard non-trivial log arguments with `logger.IsEnabled(...)`.
 - **`CA1848` is an error here** (`latest-recommended` + `TreatWarningsAsErrors`): `logger.LogInformation(...)` does not build. Use `[LoggerMessage]` partial methods. Static endpoint classes cannot be `ILogger<T>` type arguments; inject `ILoggerFactory` and `CreateLogger(typeof(...))`.
