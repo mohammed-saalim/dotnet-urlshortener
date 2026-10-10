@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/secrets.json)",
+      "Read(**/*.pfx)",
+      "Read(**/*.publishsettings)",
+      "Read(.azure/**)"
+    ]
+  },
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "set -o pipefail; cd \"$CLAUDE_PROJECT_DIR\" && dotnet build --nologo -v q 2>&1 | tail -5 && dotnet test tests/UrlShortener.UnitTests --no-build --nologo -v q 2>&1 | tail -5 || { echo 'Stop gate: dotnet build or unit tests failed; fix before finishing.' >&2; exit 2; }",
+            "timeout": 300,
+            "statusMessage": "Stop gate: dotnet build + unit tests"
+          }
+        ]
+      }
+    ]
+  }
+}

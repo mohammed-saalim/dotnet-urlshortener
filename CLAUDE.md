@@ -91,19 +91,16 @@ azd up / azd down                          # cloud deploy / teardown
 1. **Issue first.** Every task is a GitHub issue (template: intent, constraints, acceptance criteria, technical context, risk level). Labels `scenario:*`, `type:*`, `risk:high-impact`.
 2. **Branch per issue:** `feat/NN-slug`, `fix/NN-slug`, `docs/NN-slug`, `infra/NN-slug`. Never commit code to `main`.
 3. **AI log per task:** `docs/ai-log/NNN-slug.md` from `docs/ai-log/TEMPLATE.md`. Record every artifact as generated / edited (why) / rejected (why), the checks run with real output, and the sign-off line. Fill it as you go, not at the end.
-4. **Commit messages** are human-approved. Trailers on every non-scaffold commit:
-   ```
-   Assisted-by: Claude Code (<model id>)
-   AI-Log: docs/ai-log/NNN-slug.md
-   ```
-   Never add `Co-Authored-By` or `Signed-off-by`.
+4. **Commits are minimal:** a one-line subject, `Closes #N` in the body, nothing else. No attribution trailers of any kind (`Assisted-by`, `Co-Authored-By`, `Signed-off-by`). Traceability lives in the AI log and the PR, not in commit messages.
 5. **PR per branch** using the template. CI must be green. **The engineer merges; Claude never merges, never pushes to `main`, never force-pushes.**
+   Every PR ends with a **Walkthrough** section: the files to read in order (with one line on what each does), and the exact commands to see the change working locally (`gh pr checkout N`, `docker compose up -d`, `dotnet run`, `curl ...`). The engineer reads the walkthrough before reviewing the diff.
 6. **High-impact changes need explicit sign-off in the PR before merge:** schema/migrations, destination-URL validation, rate-limit policy, infra/Bicep, `.claude/settings.json`/hooks, anything touching secrets or auth. Run `/security-review` and a fresh-context `/code-review` on these first.
 7. **Evidence, not claims.** Close every task with pasted command output (test counts, curl responses, exit codes).
 8. **Packages:** verify each NuGet package on nuget.org (owner, downloads, repo) before adding; ask before adding; pin the version in `Directory.Packages.props`; list it in the AI log.
 9. **Secrets:** never read `.env`/`secrets.json`; use `dotnet user-secrets` locally and passwordless `Active Directory Default` on Azure. No connection strings in prompts, appsettings or logs.
 10. **Gotchas:** when something costs time or surprises you, add it to section 9 in the same PR.
 11. **Handoff:** update `docs/HANDOFF.md` at the end of every session (current issue, branch, last checks, next step, open questions).
+12. **Delegation:** one issue = one fresh subagent (`general-purpose`, Opus) working on the issue's branch, briefed with the issue text, this file and the AI-log template. The coordinator session reviews the diff and the AI log, runs the gates itself, commits, and opens the PR. Subagents never commit, push or open PRs. Decisions that need the engineer are reported back, not guessed.
 
 ## 7. Conventions
 
@@ -133,3 +130,7 @@ azd up / azd down                          # cloud deploy / teardown
 - **Windows is case-insensitive:** `Docs` and `docs` are one folder, and a folder can't be renamed while a shell's cwd is inside it. Start Claude Code from the repo root.
 - **Newly installed CLIs (docker, azd) are not on PATH in an already-open shell.** Restart the terminal/Claude Code.
 - **`.NET 8` goes out of support on 2026-11-10.** This project targets .NET 10 (LTS to 2028-11-14).
+- **The .NET 10.0.101 `webapi` template ships a vulnerable transitive package.** `Microsoft.AspNetCore.OpenApi 10.0.1` depends on `Microsoft.OpenApi >= 2.0.0` (GHSA-v5pm-xwqc-g5wc, high). With `NuGetAuditMode=all` + warnings-as-errors the first build fails. Fix: pin the transitive version in `Directory.Packages.props` (`CentralPackageTransitivePinningEnabled`).
+- **`IDE0005` (unused usings) only runs at build with `GenerateDocumentationFile=true`**, which then raises CS1591 on every public member. Both are set in `Directory.Build.props`; don't re-add them per project.
+- **`attribution.commit` has no placeholders.** It's a literal string, so the model id can't be templated; it is set to `""` and trailers are written by hand per commit.
+- **Stop-hook pipelines need `set -o pipefail`**, otherwise `dotnet build | tail` reports tail's exit code and a failed build passes the gate.
