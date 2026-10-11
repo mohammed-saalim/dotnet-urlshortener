@@ -188,5 +188,25 @@ Passed!  - Failed: 0, Passed: 62, Total: 62 - UrlShortener.IntegrationTests.dll
 ```
 An earlier run showed `2 Error(s)` and spurious failures while the code-review agent was building the same checkout at the same time (file locks). A clean rebuild had 0 errors. The lesson: don't run gates while a review agent builds the same tree.
 
+### Live check on Azure (2026-10-11, after `azd deploy` of `main` with #39)
+```
+POST http://169.254.169.254./latest/meta-data/   -> 400 url: Must not point to a loopback, private, link-local or unspecified address.
+POST http://192.168.1.1/admin                    -> 400 (same)
+POST http://localhost:8080/                      -> 400 url: Must not point to localhost.
+POST https://<this service's host>/x             -> 400 url: Must not point to this service.
+
+create Nr3Xm3m -> redirect 302 -> DELETE 204 -> redirect:
+HTTP/1.1 410 Gone
+cache-control: no-store
+{"type":"https://tools.ietf.org/html/rfc9110#section-15.5.11","title":"This short link has expired or been deleted.","status":410,"traceId":"00-6a6d64b2...-01"}
+GET /api/links/Nr3Xm3m -> 404
+
+create Qml0sp9 with expiresAt = now + 8 s -> redirect 302 -> wait 10 s -> redirect:
+HTTP/1.1 410 Gone
+cache-control: no-store
+GET /api/links/Qml0sp9 -> 200   (metadata still answers for an expired link)
+GET /api/links/Qml0sp9/stats -> totalClicks 1   (the 302 only; the 410 recorded no click)
+```
+
 ## Sign-off
 Reviewed the full diff, understood it, accept ownership. — <name>, YYYY-MM-DD
