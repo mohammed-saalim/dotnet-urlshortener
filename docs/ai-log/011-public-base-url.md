@@ -186,4 +186,4 @@ Fable 5.1 (coordinator session), after the subagent's hand-back. Gates re-run by
 Tests after the fixes: `PublicUrlTests` 5 → 11 (+5 theory cases, +1 host test); affected classes (`PublicUrlTests`, `ProductionErrorPipelineTests`, `RateLimitingTests`) 18/18; full suite in the PR body.
 
 ## Sign-off
-(pending engineer review of the PR)
+Reviewed and merged by the engineer in PR #27; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11

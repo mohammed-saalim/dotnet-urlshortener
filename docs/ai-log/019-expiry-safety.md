@@ -209,4 +209,4 @@ GET /api/links/Qml0sp9/stats -> totalClicks 1   (the 302 only; the 410 recorded 
 ```
 
 ## Sign-off
-Reviewed the full diff, understood it, accept ownership. — <name>, YYYY-MM-DD
+Reviewed and merged by the engineer in PR #39; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11

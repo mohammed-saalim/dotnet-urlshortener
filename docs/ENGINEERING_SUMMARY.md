@@ -175,8 +175,7 @@ This is task A3 ("perf gate"), folded in rather than run again: B5 measured loca
 
 ## Pending engineer actions
 
-- **ADR sign-off.** ADR-0005, ADR-0006 and ADR-0007 are still `proposed`. The sign-off checkbox is ticked in the high-impact PR bodies (#8, #10, #24, #29, #30, #32, #34, #39; not #20), but the name/date fields are empty and the ADR statuses were not updated.
-- **AI-log sign-off lines.** AI logs 012–019 still read `<name>, YYYY-MM-DD`; earlier logs say "pending engineer review of the PR".
+- **Done 2026-10-11:** the engineer signed off ADR-0005, ADR-0006 and ADR-0007 (now accepted) and the sign-off line of every AI log (001–020), each naming the PR that merged it.
 - **Azure teardown** about one week after the reviewer finishes: `azd down --force --purge` ([SETUP.md](SETUP.md#tear-down)).
 - **#21** (shared test container) stays deferred unless the CI flake recurs.
 - **Housekeeping:** four `worktree-agent-*` branches and the leftover `.claude/worktrees/` directory can be deleted.

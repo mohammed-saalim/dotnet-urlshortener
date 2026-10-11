@@ -125,7 +125,7 @@ None added to CLAUDE.md §9. `DateTimeOffset.Date` translated without trouble; t
 - Low risk, so `/security-review` is not required; a fresh-context `/code-review` is the coordinator's call.
 
 ## Sign-off
-(pending engineer review of the PR)
+Reviewed and merged by the engineer in PR #23; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11
 
 ## Coordinator review (before commit)
 

@@ -65,4 +65,4 @@ requests | where timestamp > 14:56 and name startswith 'POST' | summarize by res
 Default trace sampling (CLAUDE.md §9).
 
 ## Sign-off
-Reviewed the full diff, understood it, accept ownership. — <name>, YYYY-MM-DD
+Reviewed and merged by the engineer in PR #34; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11

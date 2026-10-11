@@ -1,6 +1,6 @@
 # ADR-0007: Expired and deleted links answer 410; "safe" means a small set of create-time rules and a reputation seam
 
-- Status: proposed (redirect semantics and destination-URL validation are high-impact; the engineer's sign-off goes in the A2 PR)
+- Status: accepted (engineer sign-off 2026-10-11; decisions in PR #37, implementation in PR #39)
 - Date: 2026-10-11
 - Deciders: Mohammed Saalim
 - AI assistance: Claude Code drafted the questions, options and threat model; the four behavioural answers are the engineer's (2026-10-11, [ambiguous scenario](../scenarios/ambiguous.md))

@@ -33,4 +33,4 @@ Docs only. Every assumption reversible. State the threat model. Don't pre-decide
 Docs only. Links checked by hand: ADR-0007 ↔ `scenarios/ambiguous.md`.
 
 ## Sign-off
-Reviewed, understood, accept ownership. — <name>, YYYY-MM-DD
+Reviewed and merged by the engineer in PR #37; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11

@@ -1,6 +1,6 @@
 # ADR-0006: Host on Azure Container Apps + Azure SQL free offer via azd, migrate at startup
 
-- Status: proposed (infra and the production migration path are high-impact; needs the engineer's sign-off in the PR)
+- Status: accepted (engineer sign-off 2026-10-11; hosting merged in PR #29, telemetry in #30, deploy fixes in #32 and #34)
 - Date: 2026-10-10
 - Deciders: Mohammed Saalim
 - AI assistance: Claude Code drafted options and Bicep; decision and wording are the engineer's

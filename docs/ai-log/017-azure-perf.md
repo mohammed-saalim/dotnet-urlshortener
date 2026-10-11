@@ -66,4 +66,4 @@ container resources: cpu 0.25, memory 0.5Gi
 | (proposal) raise to 0.5 vCPU | rejected for now | Doubles the per-second vCPU rate beyond the free grant for a tail that only shows under a closed-loop client; recorded as the lever if it matters. |
 
 ## Sign-off
-Reviewed, understood, accept ownership. — <name>, YYYY-MM-DD
+Reviewed and merged by the engineer in PR #35; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11

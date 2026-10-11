@@ -82,7 +82,7 @@ Test names cited in the ADR Confirmation sections were checked against the test 
 None added to CLAUDE.md section 9. Observation for the coordinator: the agent's shell policy denied reading `.env.example` (matches the `.env` deny pattern), even though the task asked for it. Consider whether `.env.example` should be exempted in `.claude/settings.json` (a high-impact file; not touched here).
 
 ## Sign-off
-(pending engineer review of the PR)
+Reviewed and merged by the engineer in PR #13; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11
 
 ## Coordinator review (before commit)
 

@@ -240,4 +240,4 @@ Tests after the fixes: 47 unit + 54 integration (no change in count).
 Follow-ups: sampling fixed in #33 (AI log 016); the click-to-redirect link documented as a known limitation in ADR-0006.
 
 ## Sign-off
-Reviewed the full diff, understood it, accept ownership. — <name>, YYYY-MM-DD
+Reviewed and merged by the engineer in PR #30; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11

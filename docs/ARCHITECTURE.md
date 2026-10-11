@@ -325,6 +325,6 @@ The application above is half the deliverable; the other half is the system that
 | [0002](adr/0002-short-codes-and-collation.md) | Random 7-character Base62, case-sensitive column collation, insert and retry | accepted |
 | [0003](adr/0003-redirect-semantics.md) | 302 + `Cache-Control: private, no-store` | accepted; superseded in part by 0007 |
 | [0004](adr/0004-async-click-analytics.md) | Bounded channel + background batch writer; at-most-once clicks | accepted |
-| [0005](adr/0005-rate-limiting.md) | Fixed window per IP on create, 10 per 60 s, 429 + `Retry-After` | proposed |
-| [0006](adr/0006-azure-hosting-and-migrations.md) | Container Apps + Azure SQL free offer via azd; startup migration; telemetry | proposed |
-| [0007](adr/0007-expiry-and-safety.md) | Expired and deleted → 410; create-time safety rules + reputation seam | proposed |
+| [0005](adr/0005-rate-limiting.md) | Fixed window per IP on create, 10 per 60 s, 429 + `Retry-After` | accepted |
+| [0006](adr/0006-azure-hosting-and-migrations.md) | Container Apps + Azure SQL free offer via azd; startup migration; telemetry | accepted |
+| [0007](adr/0007-expiry-and-safety.md) | Expired and deleted → 410; create-time safety rules + reputation seam | accepted |
