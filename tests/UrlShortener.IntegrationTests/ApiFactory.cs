@@ -1,3 +1,5 @@
+using System.Net;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -32,10 +34,17 @@ public sealed class ApiFactory(string connectionString, params string[] codes) :
     /// <summary>Extra configuration values (e.g. <c>RateLimiting:PermitLimit</c>), applied as host settings.</summary>
     public IDictionary<string, string?> Settings { get; init; } = new Dictionary<string, string?>();
 
+    /// <summary>
+    /// Peer address given to every request. TestServer leaves it null, and a null peer makes the forwarded-headers
+    /// middleware skip its known-proxy check, so the forwarded-headers tests set a non-loopback address here.
+    /// </summary>
+    public IPAddress? RemoteIpAddress { get; init; }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // Host setting, so it is visible when Program.cs reads configuration (before the host is built).
         builder.UseSetting("ConnectionStrings:UrlShortener", connectionString);
+        builder.UseSetting("PublicUrl:BaseUrl", "http://localhost"); // required at startup (#9); Settings can override
         builder.UseEnvironment(EnvironmentName);
         foreach (var (key, value) in Settings)
         {
@@ -45,6 +54,11 @@ public sealed class ApiFactory(string connectionString, params string[] codes) :
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<TimeProvider>(new FixedTimeProvider(Now));
+
+            if (RemoteIpAddress is not null)
+            {
+                services.AddSingleton<IStartupFilter>(new PeerAddressStartupFilter(RemoteIpAddress));
+            }
 
             if (ClickQueueCapacity is int capacity)
             {
@@ -73,5 +87,19 @@ public sealed class ApiFactory(string connectionString, params string[] codes) :
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    // A startup filter runs before the app's own middleware, so the address is set before UseForwardedHeaders.
+    private sealed class PeerAddressStartupFilter(IPAddress address) : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+        {
+            app.Use((context, nextMiddleware) =>
+            {
+                context.Connection.RemoteIpAddress = address;
+                return nextMiddleware(context);
+            });
+            next(app);
+        };
     }
 }

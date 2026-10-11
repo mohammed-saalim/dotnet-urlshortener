@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using UrlShortener.Api.Data;
+using UrlShortener.Api.PublicUrl;
 
 namespace UrlShortener.Api.Links;
 
@@ -20,7 +22,7 @@ public static partial class CreateLinkEndpoint
         LinksDbContext db,
         GenerateShortCode generateCode,
         TimeProvider timeProvider,
-        HttpRequest httpRequest,
+        IOptions<PublicUrlOptions> publicUrl,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
@@ -78,7 +80,7 @@ public static partial class CreateLinkEndpoint
 
         var body = new LinkResponse(
             link.Code,
-            $"{httpRequest.Scheme}://{httpRequest.Host}/{link.Code}",
+            publicUrl.Value.ShortUrl(link.Code),
             link.OriginalUrl,
             link.CreatedAt,
             link.ExpiresAt);

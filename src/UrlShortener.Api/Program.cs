@@ -1,12 +1,14 @@
 using System.Globalization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using UrlShortener.Api.Analytics;
 using UrlShortener.Api.Data;
 using UrlShortener.Api.Links;
+using UrlShortener.Api.PublicUrl;
 using UrlShortener.Api.RateLimiting;
 using UrlShortener.Api.Redirect;
 
@@ -51,8 +53,8 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy(RateLimitOptions.CreatePolicy, httpContext =>
     {
         var limit = httpContext.RequestServices.GetRequiredService<IOptions<RateLimitOptions>>().Value;
-        // Behind Container Apps ingress every client has the proxy's IP until forwarded headers are configured (#9),
-        // so there the limit is effectively global. Null (no connection address) falls back to one shared key.
+        // Behind Container Apps ingress every client has the proxy's IP unless PublicUrl:TrustForwardedHeaders is on
+        // (#9), so there the limit is effectively global. Null (no connection address) falls back to one shared key.
         return RateLimitPartition.GetFixedWindowLimiter(
             httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             _ => new FixedWindowRateLimiterOptions
@@ -66,7 +68,31 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
+// Public base URL and proxy trust (#9). shortUrl comes from configuration, never from the client's Host header.
+// AllowedHosts (host filtering, on by default) is "*" in appsettings.json for local runs; appsettings.Production.json
+// sets "localhost" so a deploy that forgets to override it fails closed (400). B6 sets the public host in Bicep.
+builder.Services.AddOptions<PublicUrlOptions>().BindConfiguration(PublicUrlOptions.SectionName)
+    .Validate(o => PublicUrlOptions.IsValidBaseUrl(o.BaseUrl), PublicUrlOptions.BaseUrlMessage)
+    .ValidateOnStart();
+
 var app = builder.Build();
+
+// Forwarded headers (#9, ADR-0005 resolution): first middleware, so the rate limiter, HTTPS redirection and error
+// handling see the client's IP and scheme. Off by default: the app trusts no proxy. With TrustForwardedHeaders the
+// known-proxy lists are cleared, so the immediate peer is trusted whatever its address: correct behind the Container
+// Apps ingress (proxy IPs are not fixed), but anywhere a client can reach the app directly it could spoof its IP and
+// scheme. ForwardLimit stays at the default 1: only the rightmost X-Forwarded-For entry, the one the ingress appended,
+// is used; entries a client sent itself sit to its left and are ignored.
+if (app.Services.GetRequiredService<IOptions<PublicUrlOptions>>().Value.TrustForwardedHeaders)
+{
+    var forwarded = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    };
+    forwarded.KnownIPNetworks.Clear(); // KnownNetworks is obsolete in .NET 10 (ASPDEPR005; CLAUDE.md section 9)
+    forwarded.KnownProxies.Clear();
+    app.UseForwardedHeaders(forwarded);
+}
 
 if (app.Environment.IsDevelopment())
 {
