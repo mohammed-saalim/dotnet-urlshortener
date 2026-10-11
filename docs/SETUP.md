@@ -180,7 +180,18 @@ Operational telemetry (issue #28) goes to the Application Insights resource thro
   | summarize rejected = sum(valueSum) by bin(timestamp, 5m)
   ```
 
-- Application logs (`ILogger`, same levels as the console) also go to the `traces` table, so a log line can be ingested twice: once as console output, once as telemetry. Request traces are sampled at up to 5 per second (the distro's default); logs written inside a request that was sampled out are dropped too, logs outside a request (startup, the click writer) are always sent; metrics are not sampled. App Insights data is stored in the existing Log Analytics workspace, so the 0.5 GB/day cap covers it, and `azd down` deletes it with the resource group.
+- Application logs (`ILogger`, same levels as the console) also go to the `traces` table, so a log line can be ingested twice: once as console output, once as telemetry. Every request trace is kept (`OTEL_TRACES_SAMPLER=microsoft.fixed_percentage`, `OTEL_TRACES_SAMPLER_ARG=1.0` in Bicep; the distro's default of 5 per second dropped a traced 429, #33). App Insights data is stored in the existing Log Analytics workspace, so the 0.5 GB/day cap covers it, and `azd down` deletes it with the resource group.
+
+**Find a request from the `traceId` a caller quotes.** Every error response (ProblemDetails) carries `"traceId": "00-<trace id>-<span id>-00"`. The middle 32 hex characters are the `operation_Id`. In Logs:
+
+```kusto
+union requests, dependencies, traces, exceptions
+| where operation_Id == "<trace id>"
+| project timestamp, itemType, name, resultCode, message
+| order by timestamp asc
+```
+
+The same id opens the portal's end-to-end transaction view: **Transaction search**, then paste it. A request, its SQL calls and its log lines share the id. The click insert does not: it runs later in the background writer under its own operation (ADR-0006, "Known limitation").
 
 ### Cost
 

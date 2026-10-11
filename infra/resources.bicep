@@ -202,6 +202,10 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
             // Distro 1.6.0 turns OpenTelemetry's url.query redaction off unless this is already set; false keeps the
             // values of any query string a client appends to a short link out of the request telemetry.
             { name: 'OTEL_DOTNET_EXPERIMENTAL_ASPNETCORE_DISABLE_URL_QUERY_REDACTION', value: 'false' }
+            // Keep every trace (the distro default keeps 5 per second), so a traceId a client quotes from an error
+            // response can always be found (#33). Revisit if ingestion approaches the workspace's daily cap.
+            { name: 'OTEL_TRACES_SAMPLER', value: 'microsoft.fixed_percentage' }
+            { name: 'OTEL_TRACES_SAMPLER_ARG', value: '1.0' }
             // Single replica (maxReplicas below), so migrating at startup does not race another instance.
             { name: 'Database__MigrateOnStartup', value: 'true' }
             {
