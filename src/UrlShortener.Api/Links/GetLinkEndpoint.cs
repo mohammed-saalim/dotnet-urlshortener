@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using UrlShortener.Api.Data;
+using UrlShortener.Api.PublicUrl;
 
 namespace UrlShortener.Api.Links;
 
@@ -9,7 +11,7 @@ public static class GetLinkEndpoint
     public static async Task<Results<Ok<LinkResponse>, NotFound>> HandleAsync(
         string code,
         LinksDbContext db,
-        HttpRequest httpRequest,
+        IOptions<PublicUrlOptions> publicUrl,
         CancellationToken cancellationToken)
     {
         var link = await db.Links
@@ -21,10 +23,10 @@ public static class GetLinkEndpoint
             return TypedResults.NotFound(); // body written by UseStatusCodePages as ProblemDetails
         }
 
-        // Same shortUrl construction as CreateLinkEndpoint; #9 replaces both with a configured public base URL.
+        // shortUrl from the configured public base URL, not the client-controlled Host header (#9).
         return TypedResults.Ok(new LinkResponse(
             link.Code,
-            $"{httpRequest.Scheme}://{httpRequest.Host}/{link.Code}",
+            publicUrl.Value.ShortUrl(link.Code),
             link.OriginalUrl,
             link.CreatedAt,
             link.ExpiresAt));
