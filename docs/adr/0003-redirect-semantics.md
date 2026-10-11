@@ -1,6 +1,6 @@
 # ADR-0003: Redirect with 302 and `Cache-Control: private, no-store`
 
-- Status: accepted (expiry behaviour deferred, see below)
+- Status: accepted; **superseded in part by [ADR-0007](0007-expiry-and-safety.md)** (2026-10-11): deleted and expired codes now answer 410 + `no-store`. The 302 + `private, no-store` decision stands.
 - Date: 2026-10-10
 - Deciders: Mohammed Saalim
 - AI assistance: Claude Code drafted options; decision and wording are the engineer's

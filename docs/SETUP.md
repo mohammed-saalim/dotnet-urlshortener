@@ -71,8 +71,14 @@ curl -i http://localhost:5078/$CODE
 # Delete it (204, soft delete)
 curl -i -X DELETE http://localhost:5078/api/links/$CODE
 
-# The code is now gone (404, application/problem+json)
+# The redirect now answers 410 Gone (application/problem+json, Cache-Control: no-store; ADR-0007).
+# An expired link answers the same; its metadata stays readable, a deleted one's is 404.
 curl -i http://localhost:5078/$CODE
+curl -i http://localhost:5078/api/links/$CODE   # 404
+
+# A destination on the clicker's own network is rejected (400, error under "url")
+curl -i -X POST http://localhost:5078/api/links -H "Content-Type: application/json" \
+  -d '{"url":"http://169.254.169.254/latest/meta-data/"}'
 
 # Health: liveness never touches the database; readiness does
 curl -i http://localhost:5078/health/live
@@ -86,7 +92,7 @@ curl -i -X POST http://localhost:5078/api/links -H "Content-Type: application/js
   -d '{"url":"https://example.com","customAlias":"MyAlias1","expiresAt":"2030-01-01T00:00:00Z"}'
 ```
 
-Expected outputs are pasted in [AI log 005](ai-log/005-api-surface.md) ("curl walkthrough"). Expiry is stored but **not enforced yet**; that is a Day 3 decision (see [`docs/plan.md`](plan.md)).
+Expected outputs are pasted in [AI log 005](ai-log/005-api-surface.md) ("curl walkthrough"). Once `expiresAt` has passed, the redirect answers 410 like a deleted link ([ADR-0007](adr/0007-expiry-and-safety.md)); the create API only accepts a future expiry, so an expired link takes waiting to see locally.
 
 ## Run the tests
 

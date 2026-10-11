@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using UrlShortener.Api.Data;
 using UrlShortener.Api.PublicUrl;
+using UrlShortener.Api.Safety;
 
 namespace UrlShortener.Api.Links;
 
@@ -23,14 +24,21 @@ public static partial class CreateLinkEndpoint
         GenerateShortCode generateCode,
         TimeProvider timeProvider,
         IOptions<PublicUrlOptions> publicUrl,
+        IUrlReputationChecker reputation,
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
-        var errors = CreateLinkValidator.Validate(request, now);
+        var errors = CreateLinkValidator.Validate(request, now, new Uri(publicUrl.Value.BaseUrl).IdnHost);
         if (errors.Count > 0)
         {
             return TypedResults.ValidationProblem(errors);
+        }
+
+        // After validation, so the checker only sees well-formed http(s) URLs (ADR-0007 threat 1).
+        if (await reputation.IsDeniedAsync(new Uri(request.Url!), cancellationToken))
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["url"] = ["Is not allowed."] });
         }
 
         var link = new Link

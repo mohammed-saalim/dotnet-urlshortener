@@ -29,6 +29,21 @@ public sealed class LinkEndpointsTests(SqlServerFixture fixture) : IClassFixture
             body);
     }
 
+    // ADR-0007: the management API still answers for an expired link, so the owner sees its history.
+    [Fact]
+    public async Task GetExpiredLinkReturnsMetadataWithPastExpiry()
+    {
+        var expiresAt = ApiFactory.Now.AddDays(-1);
+        await InsertLinkAsync("Expd55", "https://example.com/", expiresAt: expiresAt);
+        using var factory = new ApiFactory(fixture.ConnectionString);
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/links/Expd55");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(expiresAt, (await response.Content.ReadFromJsonAsync<LinkResponse>())?.ExpiresAt);
+    }
+
     [Fact]
     public async Task GetUnknownCodeIsNotFoundProblem()
     {
@@ -41,8 +56,9 @@ public sealed class LinkEndpointsTests(SqlServerFixture fixture) : IClassFixture
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
+    // Redirect was 404 until #38; ADR-0007 makes a deleted link 410 there, while the management API keeps 404.
     [Fact]
-    public async Task DeleteSoftDeletesSoGetAndRedirectAreNotFound()
+    public async Task DeleteSoftDeletesSoGetIsNotFoundAndRedirectIsGone()
     {
         await InsertLinkAsync("DelMe5", "https://example.com/");
         using var factory = new ApiFactory(fixture.ConnectionString);
@@ -54,7 +70,7 @@ public sealed class LinkEndpointsTests(SqlServerFixture fixture) : IClassFixture
 
         Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, get.StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, redirect.StatusCode);
+        Assert.Equal(HttpStatusCode.Gone, redirect.StatusCode);
         await using var db = fixture.CreateDbContext();
         Assert.Equal(ApiFactory.Now, db.Links.Single(l => l.Code == "DelMe5").DeletedAt); // row kept, not removed
     }

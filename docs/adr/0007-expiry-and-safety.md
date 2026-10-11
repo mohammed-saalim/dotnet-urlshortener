@@ -49,6 +49,7 @@ Engineer's answer: **minimal rules plus the seam**. Not built, with reasons:
 - **Homograph detection.** The validator already accepts only printable ASCII, so an international host must arrive as punycode (`xn--...`) and is visible as such.
 - **Checks at redirect time.** Rules apply at create time only. A denylist entry added later does not block existing links; re-checking on redirect is the obvious extension.
 - **Other shorteners as destinations** (chains). Possible later with the denylist.
+- **Address ranges outside the list above:** carrier-grade NAT 100.64/10, broadcast, multicast, and IPv6 forms that embed an IPv4 address (IPv4-compatible `::127.0.0.1`, NAT64 `64:ff9b::/96`, 6to4 `2002::/16`). These are accepted today. Each would be one more line in `IsNonPublic`; none appeared in the threat model's examples (code review of #38).
 
 ## Considered options
 - **Expired: 404 vs 410.** 404 hides that the code ever existed but tells the clicker nothing true. 410 is the defined status for this. Chosen: 410.

@@ -12,7 +12,7 @@ public static partial class RedirectEndpoint
     // match. A single-segment literal route such as /scalar would match the pattern, but literal routes win.
     public const string Route = "/{code:regex(^[A-Za-z0-9]{{4,10}}$)}";
 
-    public static async Task<Results<RedirectHttpResult, NotFound>> HandleAsync(
+    public static async Task<Results<RedirectHttpResult, NotFound, ProblemHttpResult>> HandleAsync(
         string code,
         LinksDbContext db,
         ClickQueue clicks,
@@ -22,11 +22,11 @@ public static partial class RedirectEndpoint
         ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
-        // Expiry is not checked yet: Day 3 decides 404 vs 410 for expired links.
+        // Deleted rows are read too, so a deleted code can answer 410 rather than 404 (ADR-0007). One query.
         var link = await db.Links
             .AsNoTracking()
-            .Where(l => l.Code == code && l.DeletedAt == null)
-            .Select(l => new { l.Id, l.OriginalUrl })
+            .Where(l => l.Code == code)
+            .Select(l => new { l.Id, l.OriginalUrl, l.ExpiresAt, l.DeletedAt })
             .SingleOrDefaultAsync(cancellationToken);
 
         if (link is null)
@@ -39,9 +39,18 @@ public static partial class RedirectEndpoint
             return TypedResults.NotFound(); // body written by UseStatusCodePages as ProblemDetails
         }
 
+        // Expired (ExpiresAt <= now, the validator's boundary) or deleted: 410, and no click, since nothing reached the
+        // destination. 410 is cacheable by default, so no-store keeps it from being remembered (ADR-0007).
+        var now = timeProvider.GetUtcNow();
+        if (link.DeletedAt is not null || link.ExpiresAt <= now)
+        {
+            httpResponse.Headers.CacheControl = "no-store";
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status410Gone, title: "This short link has expired or been deleted.");
+        }
+
         // Never waits and cannot fail the redirect: a full queue drops the click (ADR-0004).
-        clicks.TryWrite(new ClickEvent(
-            link.Id, timeProvider.GetUtcNow(), ReferrerHost(httpRequest), UserAgent(httpRequest)));
+        clicks.TryWrite(new ClickEvent(link.Id, now, ReferrerHost(httpRequest), UserAgent(httpRequest)));
 
         // 302 + no-store: every visit reaches the service, so later deletes and click counts stay accurate.
         httpResponse.Headers.CacheControl = "private, no-store";

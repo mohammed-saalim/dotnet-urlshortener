@@ -43,4 +43,21 @@ Deliberately out of scope, each with its reason in ADR-0007: DNS resolution at c
 5. `/security-review` and a fresh-context `/code-review`, then the engineer's sign-off (destination-URL validation is high-impact).
 
 ## Validation (filled in by A2)
-To come: test names, red runs, the review triage, and live curls against Azure.
+Implementation: issue #38, [AI log 019](../ai-log/019-expiry-safety.md). Each rule's test was written first and run red; the failure lines are in the AI log.
+
+| Decision | Tests | Red run (before the code) |
+|---|---|---|
+| Expired → 410 + `no-store`, boundary `<=` | `RedirectEndpointTests.CodeExpiringNowIsGoneWithNoStore`, `CodeExpiringAfterNowStillRedirects` | `Expected: Gone, Actual: Found` |
+| Deleted → 410 (was 404) | `RedirectEndpointTests.SoftDeletedCodeIsGoneWithNoStore`, `LinkEndpointsTests.DeleteSoftDeletesSoGetIsNotFoundAndRedirectIsGone` | `Expected: Gone, Actual: NotFound` |
+| No click for a 410 | `ClickAnalyticsTests.MissOrGoneLinkDoesNotRecordAClick` | `Expected: Gone, Actual: NotFound` |
+| Metadata and stats still answer for expired | `LinkEndpointsTests.GetExpiredLinkReturnsMetadataWithPastExpiry`, `LinkStatsTests.StatsForExpiredLinkAreReturned` | none: already true (the endpoints never checked expiry); characterisation tests |
+| Non-public IP literals rejected | `CreateLinkValidatorTests.RejectsLoopbackPrivateLinkLocalAndUnspecifiedIpLiterals` (+ `AcceptsPublicIpLiterals` for the range edges) | 19 cases: `KeyNotFoundException`/no `url` error |
+| IPv4 literal hidden by a trailing dot (`127.0.0.1.`, `169.254.169.254.`), IPv6 zone ID | `CreateLinkValidatorTests.RejectsIpLiteralsHiddenByTrailingDotOrZoneId` | found by the security review after A2; `Failed: 8, Passed: 0` before the fix |
+| Shorthand IPv4 (`2130706433`, `0x7f.1`, `127.1`) | `CreateLinkValidatorTests.UriNormalisesShorthandIpv4ToDottedQuad` | passed on first run: `Uri` already normalises them to `127.0.0.1`, so the IP rule covers them; no gap to document |
+| `localhost`, `*.localhost` | `CreateLinkValidatorTests.RejectsLocalhostNames`, `AcceptsNamesThatOnlyContainLocalhost` | 5 cases failed |
+| Own public host | `CreateLinkValidatorTests.RejectsOwnPublicHost`, `AcceptsSubdomainOfOwnPublicHost` | 3 cases failed |
+| Messages do not echo the URL | `CreateLinkValidatorTests.HostRuleMessagesDoNotEchoTheUrl` | 3 cases failed |
+| Reserved aliases | `CreateLinkValidatorTests.RejectsInvalidOrReservedAlias` (8 new cases) | 8 cases failed |
+| Reputation seam (denylist) | `DenylistReputationCheckerTests.*`, `CreateLinkEndpointTests.RejectsDeniedHostButCreatesOthers` | `Assert.True() Failure` (stub returning false); `Expected: BadRequest, Actual: Created` |
+
+Reviews: the security review found one HIGH bypass (trailing dot), fixed with TDD. The code review raised 7 findings: 5 fixed, 1 documented, 1 left (AI log 019, "Coordinator review"). Still to come: the engineer's sign-off and live curls against Azure.

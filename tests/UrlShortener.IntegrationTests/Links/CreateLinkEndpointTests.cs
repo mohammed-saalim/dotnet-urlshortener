@@ -70,6 +70,49 @@ public sealed class CreateLinkEndpointTests(SqlServerFixture fixture) : IClassFi
         Assert.Equal(["url"], problem.Errors.Keys);
     }
 
+    // ADR-0007 threats 2 and 3, wired through the endpoint. The base URL is not localhost here, so the own-host
+    // rule is shown on its own rather than by the localhost rule.
+    [Theory]
+    [InlineData("http://169.254.169.254/latest/meta-data/")]
+    [InlineData("http://localhost:8080/")]
+    [InlineData("https://short.example/Abc123")]
+    public async Task RejectsLocalNetworkAndOwnHostDestinations(string url)
+    {
+        using var factory = new ApiFactory(fixture.ConnectionString)
+        {
+            Settings = { ["PublicUrl:BaseUrl"] = "https://short.example" },
+        };
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync("/api/links", new { url });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal(["url"], problem.Errors.Keys);
+    }
+
+    // ADR-0007 threat 1: the reputation seam's default denylist (Safety:DeniedHosts), subdomains included.
+    [Fact]
+    public async Task RejectsDeniedHostButCreatesOthers()
+    {
+        using var factory = new ApiFactory(fixture.ConnectionString)
+        {
+            Settings = { ["Safety:DeniedHosts:0"] = "evil.example" },
+        };
+        using var client = factory.CreateClient();
+
+        var denied = await client.PostAsJsonAsync("/api/links", new { url = "https://login.evil.example/reset" });
+        var allowed = await client.PostAsJsonAsync("/api/links", new { url = "https://example.com/" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, denied.StatusCode);
+        var problem = await denied.Content.ReadFromJsonAsync<HttpValidationProblemDetails>();
+        Assert.NotNull(problem);
+        Assert.Equal(["url"], problem.Errors.Keys);
+        Assert.DoesNotContain("evil", string.Concat(problem.Errors["url"]), StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.Created, allowed.StatusCode);
+    }
+
     [Fact]
     public async Task RejectsMalformedJsonWithBadRequest()
     {

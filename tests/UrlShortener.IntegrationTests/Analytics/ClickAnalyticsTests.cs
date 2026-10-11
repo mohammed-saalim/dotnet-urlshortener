@@ -135,10 +135,12 @@ public sealed class ClickAnalyticsTests(SqlServerFixture fixture) : IClassFixtur
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/live")).StatusCode);
     }
 
+    // Deleted and expired links answer 410 since #38 (deleted was 404); neither records a click (ADR-0007).
     [Fact]
-    public async Task MissDoesNotRecordAClick()
+    public async Task MissOrGoneLinkDoesNotRecordAClick()
     {
         var deletedId = await InsertLinkAsync("Click05", deletedAt: ApiFactory.Now.AddHours(-1));
+        var expiredId = await InsertLinkAsync("Click08", expiresAt: ApiFactory.Now.AddHours(-1));
         var liveId = await InsertLinkAsync("Click06");
         int before;
         await using (var db = fixture.CreateDbContext())
@@ -150,20 +152,29 @@ public sealed class ClickAnalyticsTests(SqlServerFixture fixture) : IClassFixtur
         using var client = factory.CreateClient(NoRedirects);
 
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/Unknown05")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/Click05")).StatusCode);
+        Assert.Equal(HttpStatusCode.Gone, (await client.GetAsync("/Click05")).StatusCode);
+        Assert.Equal(HttpStatusCode.Gone, (await client.GetAsync("/Click08")).StatusCode);
         // A hit after the misses: the queue is FIFO, so once its click is stored any click from a miss would be too.
         Assert.Equal(HttpStatusCode.Found, (await client.GetAsync("/Click06")).StatusCode);
         await PollClicksAsync(liveId, expected: 1);
 
         await using var after = fixture.CreateDbContext();
         Assert.Equal(before + 1, await after.Clicks.CountAsync());
-        Assert.False(await after.Clicks.AnyAsync(c => c.LinkId == deletedId));
+        Assert.False(await after.Clicks.AnyAsync(c => c.LinkId == deletedId || c.LinkId == expiredId));
     }
 
-    private async Task<long> InsertLinkAsync(string code, DateTimeOffset? deletedAt = null)
+    private async Task<long> InsertLinkAsync(
+        string code, DateTimeOffset? deletedAt = null, DateTimeOffset? expiresAt = null)
     {
         await using var db = fixture.CreateDbContext();
-        var link = new Link { Code = code, OriginalUrl = "https://example.com/", CreatedAt = ApiFactory.Now, DeletedAt = deletedAt };
+        var link = new Link
+        {
+            Code = code,
+            OriginalUrl = "https://example.com/",
+            CreatedAt = ApiFactory.Now,
+            DeletedAt = deletedAt,
+            ExpiresAt = expiresAt,
+        };
         db.Links.Add(link);
         await db.SaveChangesAsync();
         return link.Id;
