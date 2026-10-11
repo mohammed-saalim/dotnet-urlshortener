@@ -31,7 +31,7 @@ Infra only (no app code, no packages, no change to existing resources); four pan
 - **Query items** use `queryType: 0` and `resourceType: "microsoft.insights/components"`, copied from Microsoft's own App Insights workbook (`Workbooks/Performance/Apdex/Apdex.workbook` in `microsoft/Application-Insights-Workbooks`), not guessed.
 - **Hidden until a traceId is entered:** `conditionalVisibility: { parameterName: "TraceId", comparison: "isNotEqualTo" }` with no `value`, the form Microsoft's own workbooks use for "parameter is set" (`Workbooks/Azure Resources/Alerts/Alerts.workbook`, `Documentation/LegacyAI/LegacyWorkbookConversion.workbook`). It is not optional decoration: with an empty value the query matches every log line that has no operation (25 startup/shutdown lines, check 4).
 - **Braces.** `{...}` is workbook parameter syntax, and the redirect route's own name is ``GET /{code:regex(^[A-Za-z0-9]{{4,10}}$)}``. The redirect filter is `name startswith "GET /" and name contains "code:regex"`: no braces, and it matched exactly the redirect route's 302/404/410 rows, not `GET /api/links/{code}` (check 4, P2 names). Header texts contain no braces either. The only braces in the file are the intended parameters `{TraceId}` and `{TimeRange:start|end|grain}`.
-- **traceId input:** both the full ProblemDetails value and the bare 32-hex id work: `iff("{TraceId}" startswith "00-", tostring(split("{TraceId}", "-")[1]), "{TraceId}")`; then the SETUP.md query unchanged. Both forms returned the same rows (check 4).
+- **traceId input:** both the full ProblemDetails value and the bare 32-hex id work, with surrounding whitespace trimmed first (code review: a pasted space returned no rows, silently): `let raw = trim(@"\s+", "{TraceId}"); iff(raw startswith "00-", tostring(split(raw, "-")[1]), raw)`; then the SETUP.md query unchanged. Both forms returned the same rows (check 4).
 - **traceId lookup ignores the time picker** and always searches the last 30 days (`timeContext.durationMs = 2592000000`, the workspace retention). A caller may quote an id from days ago; tying the lookup to a 24-hour default would show "no rows" for a request that exists.
 - **Zero-filled series** for panels 2 and 3 (`make-series ... default = 0 ... from {TimeRange:start} to {TimeRange:end} step {TimeRange:grain}`, the form on the Learn "Workbook time parameters" page). 429s and 410s are rare; without zero bins a line chart joins two spikes hours apart. Without `from`/`to`, `make-series` gives each `resultCode` its own range (seen: 410 had 2 bins, 404 had 1).
 - **Dropped clicks: `sum(valueSum)`, not `max`.** The exporter uses delta temporality (AI log 014, "Delta temporality", `AzureMonitorExporterExtensions.cs`), so each row is the drops in that export interval; summing gives the total in the range. `max` would report only the worst minute. Live rows: one per minute, all 0.
@@ -50,7 +50,7 @@ Infra only (no app code, no packages, no change to existing resources); four pan
 | (option) filter panel 2 to `resultCode in ("302","404","410")` | rejected | Unfiltered shows the same three codes today and would also show any unexpected code on the redirect route instead of hiding it. |
 | (option) separate charts for 5xx and dropped clicks over time | rejected | Two more charts for values that are normally 0; one row of totals answers "any?". Duration stays a time chart because its shape matters. |
 | (option) `crossComponentResources` / a resource picker | rejected | The workbook opens from its source resource, and `fallbackResourceIds` covers opening it from the gallery; a picker is a parameter the issue did not ask for. |
-| (proposal, AI log 016) "custom workbook: rejected" | superseded | The engineer opened #44 to have the support scenarios on one screen. ADR-0006 still lists workbooks under "Not built, deliberately" (reported to the coordinator, not edited here). |
+| (proposal, AI log 016) "custom workbook: rejected" | superseded | The engineer opened #44 to have the support scenarios on one screen. ADR-0006 listed workbooks under "Not built, deliberately"; the coordinator added a dated update line there rather than rewriting the signed-off text. |
 
 ## Checks run
 
@@ -79,7 +79,7 @@ lint exit=0
   Skip     : Portal dashboard           : <guid>-dashboard
   Skip     : Azure SQL Server           : sql-...
 ```
-The workbook is not in it, and neither are the database, identity, role assignment, firewall rule, action group, alert or budget: `--output json` gives the same eight rows. The cause is not confirmed: in azd 1.35.1's source the preview renderer filters nothing, and the conversion in `bicep_provider.go` skips only changes with neither `before` nor `after` state. The `Modify` lines are what-if noise that predates this change. To see every resource, an ARM what-if (read-only, `whatIf` REST call with the compiled `main.json`, `resultFormat: ResourceIdOnly`; `alertEmail` set to a placeholder because its real value lives only in the azd environment's config):
+The workbook is not in it, and neither are the database, identity, role assignment, firewall rule, action group, alert or budget: `--output json` gives the same eight rows. The cause (found by the code review, confirmed in the source at tag `azure-dev-cli_1.35.1`): `pkg/infra/provisioning/manager.go` drops every change whose type `azapi.GetResourceTypeDisplayName` does not name (`if mappingName == "" { // ignore; continue }`), and the eight missing types are unmapped. This log first said the renderer "filters nothing"; that looked one layer too low. The `Modify` lines are what-if noise that predates this change. To see every resource, an ARM what-if (read-only, `whatIf` REST call with the compiled `main.json`, `resultFormat: ResourceIdOnly`; `alertEmail` set to a placeholder because its real value lives only in the azd environment's config):
 ```
 Deploy     /subscriptions/resourceGroups                     rg-urlshortener
 Deploy     Microsoft.App/containerApps                       ca-api-...
@@ -143,6 +143,26 @@ P4 errors and drops (1 row):
 `customMetrics` for `urlshortener.analytics.dropped_clicks` over the same window: 64 rows (one per minute while the app ran), `sum(valueSum)` 0.
 
 No application code changed, so `dotnet build`/`dotnet test` were not run by this subagent (the coordinator runs the gates).
+
+## Reviews (coordinator)
+
+**`/security-review`:** no findings (none reached confidence 8). Checked: KQL injection through `TraceId` (runs with the viewer's own read rights, nothing escalated), `kind: 'shared'` (an RBAC-controlled resource, not public), ids or secrets in the committed files (none; the workbook GUID is a hash of the resource group id), PII in the panels (none beyond what Logs already shows).
+
+**Fresh `/code-review`:** Bicep shape, parameter items, conditional visibility, time contexts and every query verified against Learn and Microsoft's own workbooks. Three findings, all taken:
+
+| Finding | Outcome |
+|---|---|
+| The azd preview gotcha said the cause was unknown, and this log said azd "filters nothing"; azd's `manager.go` drops unmapped types | fixed in CLAUDE.md §9 and check 3 above, after reading the source at the 1.35.1 tag |
+| A traceId pasted with a space returns no rows, silently | fixed: `trim(@\s+", ...)` first; live check below |
+| This log said ADR-0006 was not edited, but the coordinator edited it | fixed (artifact table) |
+
+Live check of the trimmed query (P3D), each returning the 410 request and its SQL call:
+```
+[ 46229490dde823ad0ae55a9c887b8359 ]                       -> 2 rows (request 410, dependency SQL)
+[ 00-46229490dde823ad0ae55a9c887b8359-0000000000000000-00] -> 2 rows
+[46229490dde823ad0ae55a9c887b8359]                         -> 2 rows
+```
+While applying the fix, a wrongly escaped backslash in `workbook.json` failed `bicep build` (`BCP186: Unable to parse literal JSON value`): the `loadJsonContent` safety net working as intended. After the fix: `bicep build` exit 0, `bicep lint` exit 0 with no diagnostics.
 
 ## Not verified here (needs the engineer's `azd provision`)
 - That the workbook renders: the parameter-visibility form, `make-series` with `{TimeRange:start}`/`{TimeRange:end}`, and the time charts were checked against Microsoft's docs and workbooks, not in a portal.

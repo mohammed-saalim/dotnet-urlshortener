@@ -73,7 +73,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "let wanted = iff(\"{TraceId}\" startswith \"00-\", tostring(split(\"{TraceId}\", \"-\")[1]), \"{TraceId}\");\nunion requests, dependencies, traces, exceptions\n| where operation_Id == wanted\n| project timestamp, itemType, name, resultCode, message\n| order by timestamp asc",
+        "query": "let raw = trim(@\"\\s+\", \"{TraceId}\");\nlet wanted = iff(raw startswith \"00-\", tostring(split(raw, \"-\")[1]), raw);\nunion requests, dependencies, traces, exceptions\n| where operation_Id == wanted\n| project timestamp, itemType, name, resultCode, message\n| order by timestamp asc",
         "size": 0,
         "queryType": 0,
         "resourceType": "microsoft.insights/components",
