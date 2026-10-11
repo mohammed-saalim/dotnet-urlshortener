@@ -141,13 +141,11 @@
         "version": "KqlItem/1.0",
         "query": "requests\n| where name startswith \"GET /\" and name contains \"code:regex\"\n| summarize p50 = percentile(duration, 50), p95 = percentile(duration, 95) by bin(timestamp, {TimeRange:grain})",
         "size": 0,
+        "aggregation": 2,
         "queryType": 0,
         "resourceType": "microsoft.insights/components",
         "visualization": "timechart",
-        "timeContextFromParameter": "TimeRange",
-        "chartSettings": {
-          "showLegend": true
-        }
+        "timeContextFromParameter": "TimeRange"
       },
       "name": "panel 4 redirect duration"
     },
