@@ -60,4 +60,4 @@ Implementation: issue #38, [AI log 019](../ai-log/019-expiry-safety.md). Each ru
 | Reserved aliases | `CreateLinkValidatorTests.RejectsInvalidOrReservedAlias` (8 new cases) | 8 cases failed |
 | Reputation seam (denylist) | `DenylistReputationCheckerTests.*`, `CreateLinkEndpointTests.RejectsDeniedHostButCreatesOthers` | `Assert.True() Failure` (stub returning false); `Expected: BadRequest, Actual: Created` |
 
-Reviews: the security review found one HIGH bypass (trailing dot), fixed with TDD. The code review raised 7 findings: 5 fixed, 1 documented, 1 left (AI log 019, "Coordinator review"). Still to come: the engineer's sign-off and live curls against Azure.
+Reviews: the security review found one HIGH bypass (trailing dot), fixed with TDD. The code review raised 7 findings: 5 fixed, 1 documented, 1 left (AI log 019, "Coordinator review"). Engineer merged #39 (2026-10-11). Live on Azure: every rule and both 410 paths verified ([AI log 019](../ai-log/019-expiry-safety.md), "Live check on Azure").
