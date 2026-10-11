@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using UrlShortener.Api.Analytics;
 using UrlShortener.Api.Links;
 
 namespace UrlShortener.IntegrationTests;
@@ -21,6 +23,12 @@ public sealed class ApiFactory(string connectionString, params string[] codes) :
     /// <summary>"Production" covers the production error pipeline and skips startup migration (no database needed).</summary>
     public string EnvironmentName { get; init; } = "Development";
 
+    /// <summary>Replaces the click queue with one of this capacity; null keeps the app's default.</summary>
+    public int? ClickQueueCapacity { get; init; }
+
+    /// <summary>False removes the click writer, so queued clicks stay queued (queue-full test).</summary>
+    public bool ClickWriterEnabled { get; init; } = true;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // Host setting, so it is visible when Program.cs reads configuration (before the host is built).
@@ -30,6 +38,18 @@ public sealed class ApiFactory(string connectionString, params string[] codes) :
         builder.ConfigureTestServices(services =>
         {
             services.AddSingleton<TimeProvider>(new FixedTimeProvider(Now));
+
+            if (ClickQueueCapacity is int capacity)
+            {
+                services.RemoveAll<ClickQueue>();
+                services.AddSingleton(new ClickQueue(capacity));
+            }
+
+            if (!ClickWriterEnabled)
+            {
+                // Only the writer: the collection also holds the hosted service that runs the web server.
+                services.Remove(services.Single(d => d.ImplementationType == typeof(ClickWriterService)));
+            }
 
             if (codes.Length > 0)
             {

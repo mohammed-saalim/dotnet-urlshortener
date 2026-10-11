@@ -3,8 +3,9 @@
 Read this first when resuming (any model, any session). Keep it to one screen; update at the end of every session.
 
 ## Where we are
-- **Phase:** Day 2 (brownfield). Day 1 fully merged (#7, #8, #10, #11, #12, #13). B1 (#14: impact analysis + ADR-0004) written, engineer answered the open questions, PR open. Next is B2 (#15) click analytics.
-- **Branch:** `docs/07-brownfield-impact`. `main` = Day 1 complete, 72 tests.
+- **Phase:** Day 2 (brownfield). B1 (#14) PR #20 open (needs merge). B2 (#15) click analytics done by a delegated agent, both reviews run (3 fixes), PR open and stacked on #20. Next is B3 (#16) stats endpoint; B4 (#17) can run in parallel.
+- **Branch:** `feat/08-click-analytics` (based on `docs/07-brownfield-impact`). `main` = Day 1, 72 tests; this branch 77.
+- **Resolved in B2:** `TryWrite` under `DropWrite` returns true and fires `itemDropped`; the web host stops before the writer (TestServer); `EnableRetryOnFailure` does not retry an FK failure. Writer drains on its own token (looping on `stoppingToken` lost every queued click in the red run).
 - **Day 2 issues:** #14 B1, #15 B2, #16 B3, #17 B4, #18 B5 (measure first, cache only if justified), #19 B6, #9 base URL. Order: B1 → B2 → B3; B4 independent; B5 after B2; #9 before B6; B6 last.
 - **Decisions taken for B2:** see the table in AI log 007 (shape = timestamp + referrer host + truncated UA; no IP; capacity 10,000; batch 100 no timer; stats 404 on deleted; `datetimeoffset`).
 - **API now complete for Day 1:** POST/GET/DELETE `/api/links`, `GET /{code}`, `/health/live|ready`, `/openapi/v1.json`, `/scalar` (Development).
@@ -17,8 +18,9 @@ Read this first when resuming (any model, any session). Keep it to one screen; u
 See `docs/plan.md` "Decisions" and `docs/research/reports/URL shortener assignment validation.md`. ADRs 0001-0003 are written in task G6.
 
 ## Next step
-1. Engineer reviews the B1 PR (ADR-0004 is the decision record for the schema B2 adds), merges.
-2. `git checkout main && git pull`, branch `feat/08-click-analytics`, delegate B2 (#15) with ADR-0004 as the spec and its five named tests as the acceptance criteria; B2 also creates `docs/TESTING.md` (loss-on-crash statement) and corrects `docs/plan.md` (`datetime2` → `datetimeoffset` for `Clicks`).
+1. Engineer merges PR #20 (B1), then reviews and merges the B2 PR (schema = high-impact sign-off).
+2. `git checkout main && git pull`, branch `feat/09-stats`, delegate B3 (#16): one grouped query over `Clicks`, fixed `TimeProvider`, 404 for unknown/deleted, state at-most-once in the endpoint summary. Keep to one new test class (#21 flake risk; now six classes).
+3. B4 (#17) is independent of B3 and can be delegated in parallel on its own branch.
 3. Still open from Day 1: production migration path (decide in B6), public base URL (#9), optional down-DB readiness test, optional shared `ApiFactory`.
 
 ## Open questions for the engineer

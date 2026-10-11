@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using UrlShortener.Api.Analytics;
 using UrlShortener.Api.Links;
 
 namespace UrlShortener.Api.Data;
@@ -6,6 +7,8 @@ namespace UrlShortener.Api.Data;
 public sealed class LinksDbContext(DbContextOptions<LinksDbContext> options) : DbContext(options)
 {
     public DbSet<Link> Links => Set<Link>();
+
+    public DbSet<Click> Clicks => Set<Click>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,6 +24,17 @@ public sealed class LinksDbContext(DbContextOptions<LinksDbContext> options) : D
 
             link.Property(l => l.OriginalUrl).HasMaxLength(2048);
             link.Property(l => l.CreatedAt).IsRequired();
+        });
+
+        modelBuilder.Entity<Click>(click =>
+        {
+            // No navigation properties, so the foreign key is declared here. Default delete behaviour: links are only
+            // soft-deleted today.
+            click.HasOne<Link>().WithMany().HasForeignKey(c => c.LinkId);
+            click.HasIndex(c => new { c.LinkId, c.OccurredAt }); // per-link, per-day stats (B3)
+
+            click.Property(c => c.ReferrerHost).HasMaxLength(Click.ReferrerHostMaxLength);
+            click.Property(c => c.UserAgent).HasMaxLength(Click.UserAgentMaxLength);
         });
     }
 }
