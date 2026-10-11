@@ -16,7 +16,7 @@ Stop deriving `shortUrl` from the client-controlled `Host` header and make the c
 - TDD for `ShortUrlIgnoresClientHostHeader` (red first).
 - Existing tests unchanged; only `ApiFactory` may supply the new setting.
 - `Program.cs`: new blocks only, no reordering (B5 runs in parallel). Do not touch `RedirectEndpoint.cs`, `perf/`, or the Performance section of `docs/TESTING.md`.
-- No ADR-0006 (reserved for Day 3): append a "Resolution (#9)" to ADR-0005.
+- No new ADR (ADR-0006 was then reserved for Day 3; renumbered to ADR-0007 in B6): append a "Resolution (#9)" to ADR-0005.
 - Verify every `ForwardedHeadersOptions` detail against the official docs. No commit/push/PR; no `.env`/secrets/`.azure/`.
 
 ## Acceptance criteria (runnable)

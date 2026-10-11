@@ -138,7 +138,7 @@ Opens with an **impact analysis** (`docs/scenarios/brownfield.md`): modules, dat
 ### Day 3 — Ambiguous: "links should expire and be safe" + docs + summary
 | # | Task | Depends on | Verify |
 |---|---|---|---|
-| A1 | Clarification doc: open questions (what is "expire": TTL default? hard delete? 404 vs 410; what is "safe": private IPs/localhost/self-loop, reserved aliases, reputation, length caps, homographs; mutability) → **assumptions in ADR-0006** (recorded as assumptions, reversible) | B6 | user reviews questions |
+| A1 | Clarification doc: open questions (what is "expire": TTL default? hard delete? 404 vs 410; what is "safe": private IPs/localhost/self-loop, reserved aliases, reputation, length caps, homographs; mutability) → **assumptions in ADR-0007** (recorded as assumptions, reversible) | B6 | user reviews questions |
 | A2 | Smallest reversible implementation: expiry → 410 + `no-store`; validation hardening (private/loopback/link-local/metadata IPs, `localhost`, self-host loop, reserved-word blocklist, 2048 cap); `IUrlReputationChecker` seam with no-op default + denylist | A1 | TDD tests for each rule; `/security-review`; user sign-off (validation) |
 | A3 | Perf gate: k6 redirect load test via Docker, numbers recorded (p50/p95, RPS) with cache on/off | B5 | results in TESTING.md |
 | A4 | ARCHITECTURE.md (Mermaid), TESTING.md, limitations/trade-offs, ENGINEERING_SUMMARY.md, final CLAUDE.md gotchas pass, HANDOFF.md | all | docs review; README links resolve |

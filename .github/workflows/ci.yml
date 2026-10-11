@@ -38,3 +38,21 @@ jobs:
         with:
           name: test-results
           path: TestResults
+
+  bicep:
+    runs-on: ubuntu-latest   # az CLI is preinstalled; no Azure login: build and lint are offline
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same Bicep version as the local lint (azd downloaded 0.47.16), so a new linter rule cannot turn CI red on an
+      # unchanged branch; bump it on purpose, like global.json.
+      - name: Pin Bicep
+        run: az bicep install --version v0.47.16
+
+      # Lint compiles the files and checks types and linter rules; warnings do not change its exit code, so grep for them.
+      - name: Bicep lint (fail on any warning)
+        run: |
+          set -o pipefail
+          az bicep version
+          az bicep lint --file infra/main.bicep 2>&1 | tee lint.txt
+          ! grep -E ': (Warning|Error) ' lint.txt

@@ -79,7 +79,7 @@ Failed!  - Failed:     1, Passed:     4, Skipped:     0, Total:     5, Duration:
 ## Decisions (for the engineer to question)
 - **Route constraint `regex(^[A-Za-z0-9]{4,10}$)`** (written `{{4,10}}` in the C# string, because braces are route-template syntax). One segment, Base62, length 4-10 = the custom alias range; generated codes are 7. `/api` (3 chars), every multi-segment path (`/api/links`, `/health/live`, `/openapi/v1.json`) and anything with a dot never reach the handler. **Caveat:** a single-segment literal such as `/scalar` or `/health` *does* match the pattern; it is safe only because ASP.NET routing ranks literal segments above parameters. That is also why G3's reserved-alias list matters: an alias `scalar` would be shadowed by the Scalar UI.
 - **404 for unknown and soft-deleted alike, via `TypedResults.Problem(404)`, not `TypedResults.NotFound()`.** `NotFound()` produced an empty body with no `Content-Type` (red run above), because `AddProblemDetails()` only shapes bodies written by the exception handler / status-code-pages middleware. A global `UseStatusCodePages()` would fix it for every endpoint; that belongs to G5 (#5, ProblemDetails for all errors), so the fix here is local and matches the 409 in `CreateLinkEndpoint`.
-- **Expired links still redirect** in this task (`ExpiresAt` is not read). Day 3's ambiguous scenario decides 404 vs 410 (ADR-0006).
+- **Expired links still redirect** in this task (`ExpiresAt` is not read). Day 3's ambiguous scenario decides 404 vs 410 (ADR-0007).
 - **`Cache-Control: private, no-store` on the 302 only.** The 404 has no explicit cache header (not in the spec); revisit with the 410 decision if negative caching matters.
 - **`Location` is the stored string as-is.** The G3 validator guarantees printable ASCII with no whitespace, so Kestrel accepts it as a header value. The test uses a percent-encoded query (`ref=a%20b`) and asserts the exact string, so it is neither re-encoded nor decoded.
 - **One query:** `AsNoTracking().Where(Code == code && DeletedAt == null).Select(OriginalUrl).SingleOrDefaultAsync(ct)`. Case sensitivity comes from the column collation (G2), not the query; `CodeDifferingOnlyInCaseIsNotFound` proves it end to end.
@@ -111,7 +111,7 @@ None added to CLAUDE.md §9. (`NotFound()` without a body under `AddProblemDetai
 
 ## Open items
 - G5 (#5): `UseStatusCodePages()` so empty status results (and framework 400s) become ProblemDetails globally.
-- Day 3: expiry → 404 vs 410 (ADR-0006); will need `ExpiresAt`/`DeletedAt` in the projection.
+- Day 3: expiry → 404 vs 410 (ADR-0007); will need `ExpiresAt`/`DeletedAt` in the projection.
 - `docs/HANDOFF.md` not updated by the subagent (coordinator's end-of-session step).
 
 ## Sign-off

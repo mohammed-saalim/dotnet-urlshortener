@@ -23,7 +23,7 @@
 Chosen option: "2. 302 with `Cache-Control: private, no-store`", because every click then reaches the service, so deletes take effect immediately and analytics can count visits.
 
 - Unknown or soft-deleted code: **404** ProblemDetails (`application/problem+json`).
-- Expired code: **not handled on Day 1**; expired links still redirect. Whether expiry returns 410 (with `no-store`) or 404 is decided on Day 3 (planned ADR-0006). This ADR does not pre-empt that decision.
+- Expired code: **not handled on Day 1**; expired links still redirect. Whether expiry returns 410 (with `no-store`) or 404 is decided on Day 3 (planned ADR-0007). This ADR does not pre-empt that decision.
 
 ### Consequences
 - Good: deletes and later edits are effective immediately; Day 2 click counting sees every visit.

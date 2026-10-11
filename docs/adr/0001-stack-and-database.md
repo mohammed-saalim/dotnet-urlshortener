@@ -32,7 +32,7 @@ Chosen option: "1. .NET 10 Minimal APIs + EF Core 10 + SQL Server as the only pr
 - Good: one migration path; collation and unique-index behaviour are exercised on a real SQL Server in every integration test class.
 - Good: the Azure SQL free offer (100k vCore-seconds, 32 GB, 10 databases, no time limit) and the Container Apps monthly grant apply to an existing subscription ([free offer](https://learn.microsoft.com/azure/azure-sql/database/free-offer?view=azuresql), [ACA billing](https://learn.microsoft.com/azure/container-apps/billing#consumption-plan)).
 - Bad: **the reviewer needs Docker** (Docker Desktop) to run the API and the integration tests; the first test run pulls a SQL Server image of about 1.5 GB. A reviewer on an older SDK needs the .NET 10 SDK ([`global.json`](../../global.json) pins 10.0.101).
-- Bad: **there is no production migration path yet.** Migrations apply at startup in Development only; the options (idempotent migration script run by the pipeline, or a migration bundle) are open for the Azure task (AI log 002).
+- Bad: **there is no production migration path yet.** Migrations apply at startup in Development only; the options (idempotent migration script run by the pipeline, or a migration bundle) are open for the Azure task (AI log 002). *Resolved by [ADR-0006](0006-azure-hosting-and-migrations.md): startup migration behind `Database:MigrateOnStartup`, single replica.*
 - Neutral / follow-ups: Azure SQL serverless bills vCore-seconds whenever the database is online, so `/health/live` must not touch the DB (implemented, tested). `UseSqlServer` is used rather than `UseAzureSql`; revisit at deploy time.
 
 ### Confirmation

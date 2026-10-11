@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+# azd up: provisions infra/main.bicep, builds src/UrlShortener.Api/Dockerfile, pushes it to the registry and points the
+# container app at it. Decisions in docs/adr/0006-azure-hosting-and-migrations.md; usage in docs/SETUP.md.
+name: dotnet-urlshortener
+services:
+  api:
+    project: ./src/UrlShortener.Api
+    language: dotnet
+    host: containerapp
+    docker:
+      path: ./Dockerfile
+      # Relative to the project: the repo root, which holds global.json and the Directory.*.props files.
+      context: ../..
+      # Local Docker build by default. remoteBuild: true would build in the registry (ACR Tasks) instead and
+      # remove the need for local Docker; see docs/SETUP.md.
