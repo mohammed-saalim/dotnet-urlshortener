@@ -153,7 +153,7 @@ No application code changed, so `dotnet build`/`dotnet test` were not run by thi
 | Finding | Outcome |
 |---|---|
 | The azd preview gotcha said the cause was unknown, and this log said azd "filters nothing"; azd's `manager.go` drops unmapped types | fixed in CLAUDE.md §9 and check 3 above, after reading the source at the 1.35.1 tag |
-| A traceId pasted with a space returns no rows, silently | fixed: `trim(@\s+", ...)` first; live check below |
+| A traceId pasted with a space returns no rows, silently | fixed: `trim(@"\s+", ...)` first; live check below |
 | This log said ADR-0006 was not edited, but the coordinator edited it | fixed (artifact table) |
 
 Live check of the trimmed query (P3D), each returning the 410 request and its SQL call:
