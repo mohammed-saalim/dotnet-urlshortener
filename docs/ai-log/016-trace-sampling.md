@@ -44,7 +44,22 @@ No code change if configuration does it; stay under the 0.5 GB/day workspace cap
 $ ~/.azd/bin/bicep lint infra/main.bicep; echo $?
 0   (no diagnostics; bicep 0.47.16)
 ```
-No application code changed. Live re-check after `azd provision`: below.
+No application code changed.
+
+### Live re-check (2026-10-11, after `azd provision` from this branch)
+New revision `ca-api-...--0000001` (100 % traffic) carries `OTEL_TRACES_SAMPLER=microsoft.fixed_percentage` and `OTEL_TRACES_SAMPLER_ARG=1.0`. The image is unchanged (`...azurecr.io/.../api-urlshortener:azd-deploy-1791728993`), so `infra/api-image.bicep` kept the deployed image on re-provision.
+
+The burst at 14:56:15 UTC: 13 POSTs → 10 × 201, 3 × 429. The trace ids from the three 429 bodies:
+```
+requests | where operation_Id in ('185a899f...','782fd4a3...','b4230a90...')
+2026-10-11T14:56:19.73Z | POST /api/links/ | 429 | 185a899f3b3b73792488654f60bb980f
+2026-10-11T14:56:19.94Z | POST /api/links/ | 429 | 782fd4a342953c876689aee60e307edf
+2026-10-11T14:56:20.08Z | POST /api/links/ | 429 | b4230a9020ba757e3cbefe52216fa1ca
+requests | where timestamp > 14:56 and name startswith 'POST' | summarize by resultCode
+201 | 10
+429 | 3
+```
+**Before:** 1 of 2 429s stored, and the one quoted to the client was missing. **After:** 3 of 3 found by the id the client received, and 13 of 13 requests stored.
 
 ## Gotchas encountered
 Default trace sampling (CLAUDE.md §9).

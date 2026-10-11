@@ -3,7 +3,7 @@
 Read this first when resuming (any model, any session). Keep it to one screen; update at the end of every session.
 
 ## Where we are
-- **Phase:** Day 2 (brownfield) complete and **deployed**. Merged: B1–B7 (#20, #22, #23, #24, #26, #29, #30), #9 (#27), #31 (#32: first-deploy fixes). **Live** in centralus (azd env `urlshortener`): create 201, redirect 302 + `private, no-store`, stats, readiness all verified (AI log 015); B7 checks 7/8 pass, 1 not observed (AI log 014). **#33 (trace sampling) is PR-ready on `infra/33-trace-sampling`**: needs `azd provision` from the branch and the live re-check.
+- **Phase:** Day 2 (brownfield) complete and **deployed**. Merged: B1–B7 (#20, #22, #23, #24, #26, #29, #30), #9 (#27), #31 (#32: first-deploy fixes). **Live** in centralus (azd env `urlshortener`): create 201, redirect 302 + `private, no-store`, stats, readiness all verified (AI log 015); B7 checks 7/8 pass, 1 not observed (AI log 014). **#33 (trace sampling) is PR-ready on `infra/33-trace-sampling`**: deployed from the branch and verified live (3 of 3 quoted 429 trace ids found, AI log 016).
 - **Coordinator model:** Opus 5.5 since 2026-10-10 (before B7).
 - **Tests:** 101 (47 unit + 54 integration).
 - **Deploy facts:** subscription refuses new SQL servers in eastus2 (centralus works); free-offer DB accepts only the default 60-min auto-pause delay; azd's `AllowAllWindowsAzureIps` reserved-word warning is a false positive; the image lookup lives in `infra/api-image.bicep` (CLAUDE.md §9).
@@ -17,7 +17,7 @@ Read this first when resuming (any model, any session). Keep it to one screen; u
 `docs/plan.md` "Decisions", ADRs 0001–0006, AI logs 001–013 (each with a coordinator review table).
 
 ## Next step
-1. #33: engineer runs `azd provision` from `infra/33-trace-sampling`; coordinator repeats the 11-POST burst and finds every 429's `traceId` in `requests`; evidence into AI log 016 and the PR; engineer merges.
+1. Engineer merges #34 (#33, verified live).
 2. Measure the Azure SQL round trip from the container (B5's first cache trigger; `perf/redirect-load.js` with `BASE_URL=$API_BASE_URL`, mind the create rate limit).
 3. Day 3: A1 clarification doc + ADR-0007 (expiry → 410 vs 404, "safe"), A2 implementation, A3 perf gate (reuse `perf/redirect-load.js`), A4 ARCHITECTURE.md, ENGINEERING_SUMMARY.md, final CLAUDE.md pass.
 4. Housekeeping: `.claude/worktrees/agent-aced098cab8bdaeeb` (locked leftover directory) and the `worktree-agent-*` branches can be deleted.
