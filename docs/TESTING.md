@@ -17,6 +17,7 @@ dotnet test -c Release   # unit + integration; integration tests need Docker run
 | `IntegrationTests/Health/HealthEndpointsTests` | integration | `/health/live` never touches the database (unreachable DB still 200); `/health/ready` checks it |
 | `IntegrationTests/ErrorPipeline/ProductionErrorPipelineTests` | integration, `Production` environment | ProblemDetails for 400/404/500 without stack traces |
 | `IntegrationTests/Analytics/ClickAnalyticsTests` | integration | Click recording (ADR-0004): redirect → row (host-only referrer, truncated user agent), redirect still 302 when the queue is full and drops are counted, shutdown drains the queue, the writer survives a failed batch, misses record nothing |
+| `IntegrationTests/Analytics/LinkStatsTests` | integration | `GET /api/links/{code}/stats`: total, 7 UTC days zero-filled oldest first (day boundaries at 00:00 UTC), top 5 referrer hosts by count then host (nulls excluded), zero-click link, 404 problem for unknown and soft-deleted codes. Clicks inserted directly, no polling |
 
 Integration tests run the real app through `WebApplicationFactory` (`ApiFactory`) against a real SQL Server started by Testcontainers (`mcr.microsoft.com/mssql/server:2022-latest`), one container per test class (`SqlServerFixture`). No EF InMemory or SQLite: collation and unique-index behaviour are part of what is tested. Time is fixed through an injected `TimeProvider` (`ApiFactory.Now`). Click tests poll the database (every 50 ms, up to 5 s) because clicks are written asynchronously.
 
