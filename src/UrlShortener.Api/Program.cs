@@ -75,6 +75,11 @@ builder.Services.AddOptions<PublicUrlOptions>().BindConfiguration(PublicUrlOptio
     .Validate(o => PublicUrlOptions.IsValidBaseUrl(o.BaseUrl), PublicUrlOptions.BaseUrlMessage)
     .ValidateOnStart();
 
+// Startup migration switch (ADR-0006).
+builder.Services.AddOptions<DatabaseOptions>().BindConfiguration(DatabaseOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 var app = builder.Build();
 
 // Forwarded headers (#9, ADR-0005 resolution): first middleware, so the rate limiter, HTTPS redirection and error
@@ -98,9 +103,12 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
+}
 
-    // Development convenience only: `docker compose up -d` + `dotnet run` gives a ready database.
-    // Other environments do not migrate at startup (production migration path is an open item, see AI log 002).
+// Development (`docker compose up -d` + `dotnet run`) and the single-replica Azure deployment migrate here; the default
+// is off. Runs before the app listens, so no request sees an old schema (ADR-0006).
+if (app.Services.GetRequiredService<IOptions<DatabaseOptions>>().Value.MigrateOnStartup)
+{
     if (string.IsNullOrWhiteSpace(app.Configuration.GetConnectionString("UrlShortener")))
     {
         throw new InvalidOperationException(

@@ -1,5 +1,7 @@
+using System.Net;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using UrlShortener.Api.Data;
 using UrlShortener.Api.Links;
 
 namespace UrlShortener.IntegrationTests.Links;
@@ -23,6 +25,25 @@ public sealed class LinkPersistenceTests(SqlServerFixture fixture) : IClassFixtu
             .Select(l => l.Code)
             .ToListAsync();
         Assert.Equal(["ABC", "abc"], codes.Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public async Task ProductionMigratesAtStartupWhenSwitchedOn()
+    {
+        // ADR-0006: the Azure deployment runs as Production with Database:MigrateOnStartup=true. A database that does
+        // not exist yet on the class's container, so the app itself must create it and apply every migration.
+        var connectionString = new SqlConnectionStringBuilder(fixture.ConnectionString) { InitialCatalog = "MigrateOnStartup" }.ConnectionString;
+        using var factory = new ApiFactory(connectionString)
+        {
+            EnvironmentName = "Production",
+            Settings = { ["Database:MigrateOnStartup"] = "true" },
+        };
+
+        using var client = factory.CreateClient(); // builds the host, which migrates before it listens
+
+        await using var db = new LinksDbContext(new DbContextOptionsBuilder<LinksDbContext>().UseSqlServer(connectionString).Options);
+        Assert.Empty(await db.Database.GetPendingMigrationsAsync());
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/health/ready")).StatusCode);
     }
 
     [Fact]

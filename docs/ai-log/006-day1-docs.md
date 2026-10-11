@@ -46,7 +46,7 @@ Make Day 1 reviewable: a reviewer can clone, run and understand why the stack, s
 - **ADR-0001 "no production migration path yet"** is taken from AI log 002 ("open item for B6"). It is true today but will be stale after Day 2.
 - **ADR-0002 "Five consecutive collisions is about (2.8e-7)^5"** and the Crockford base32 figure (32^7 about 3.4e10) are my own arithmetic, not from the report; both are labelled so in the text. The birthday 50% point and 2.8e-7 are the report's numbers.
 - **ADR-0003 vendor table** (bit.ly 301 + `private, max-age=90`, TinyURL 301 + `no-store`, Dub 302) comes from the researcher's curl observations; the report lists it as weaker evidence. It is labelled that way. Nothing was re-checked.
-- **ADR-0003 treats expiry as undecided** and names ADR-0006 as the planned home (plan.md numbers ADR-0004 and ADR-0005 for analytics and rate limiting, and ADR-0006 for the A1 assumptions). Check this numbering is still wanted.
+- **ADR-0003 treats expiry as undecided** and names ADR-0007 as the planned home (plan.md numbers ADR-0004 and ADR-0005 for analytics and rate limiting, and ADR-0007 for the A1 assumptions; renumbered in B6, AI log 013). Check this numbering is still wanted.
 - **greenfield.md "G5 risk"**: AI log 005 and PR #12 disagree with themselves (log says low, PR body ticks high-impact because the CI fix touched agent settings). I wrote "low at review, marked high-impact after". The PR body does not show `/security-review` or `/code-review` ticked; I wrote "not run" based on the AI log's coordinator review.
 - **greenfield.md model names**: "Opus 5.5 subagents" for G2 to G5 and "coordinating session" for G1 come from the log header tables.
 - **Evidence table figures are not re-run** by this agent; they are the G5 AI log and PR #12 results. SETUP was not executed either.
@@ -110,5 +110,5 @@ App log showed EF command logging with `Parameters=[]` (values are not logged wi
 | HANDOFF stale | Expected; the coordinator updates it per task (done in this PR) |
 | G5 marked high-impact after the fact with no reviews run | Accurate; `greenfield.md` states it plainly. Accepted as a recorded process deviation rather than retro-running reviews on merged code |
 | `.env.example` unreadable to the agent (`Read(**/.env.*)` deny) | Known cost of the deny rule; SETUP points at the file. Not changing agent settings in a docs PR |
-| ADR status/date, ADR-0006 numbering, "no production migration path yet" | Accepted: decisions were taken in the approved plan before code; numbering matches the plan; ADR-0001's consequence will be superseded by the Day 2 infra decision |
+| ADR status/date, ADR-0007 numbering, "no production migration path yet" | Accepted: decisions were taken in the approved plan before code; numbering matches the plan; ADR-0001's consequence will be superseded by the Day 2 infra decision |
 | 5-minute check #4 (ready fails when DB stopped) inferred, not tested | Accepted; candidate for a small test in Day 2 |

@@ -1,0 +1,20 @@
+# The Dockerfile copies only what restore and publish need; this keeps the build context small and keeps
+# host build output (a Windows obj/project.assets.json breaks a Linux restore) and secrets out of it.
+**/bin/
+**/obj/
+.git/
+.github/
+.vs/
+.idea/
+.claude/
+.config/
+.remember/
+.azure/
+.env
+.env.*
+**/secrets.json
+docs/
+tests/
+perf/
+infra/
+TestResults/

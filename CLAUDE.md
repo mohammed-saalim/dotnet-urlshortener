@@ -107,7 +107,7 @@ azd up / azd down                          # cloud deploy / teardown
 - Minimal APIs grouped with `MapGroup`, `TypedResults`, ProblemDetails for all errors, built-in OpenAPI (`/openapi/v1.json`), Scalar UI in Development only.
 - Options pattern with `ValidateDataAnnotations().ValidateOnStart()`; `CancellationToken` passed everywhere.
 - Short codes: `RandomNumberGenerator.GetString`, never `System.Random`. Uniqueness by **unique index + catch violation + retry**, never check-then-insert.
-- Redirects: `302` + `Cache-Control: private, no-store`. Expired/deleted: `410` + `no-store` (decision in ADR-0006).
+- Redirects: `302` + `Cache-Control: private, no-store`. Expired/deleted: `410` + `no-store` (decision in ADR-0007).
 - Logging: never log raw destination URLs or client IPs; log the short code and the host only.
 - Tests: behaviour through `WebApplicationFactory` + Testcontainers (real SQL Server). No EF InMemory provider. No tests that only assert a mock was called.
 - Docs: MADR 4.0 ADRs in `docs/adr/`, Mermaid diagrams in Markdown (GitHub renders them). No generated-diagram tools.
@@ -125,7 +125,7 @@ azd up / azd down                          # cloud deploy / teardown
 - **`Channel.CreateBounded` defaults to `FullMode = Wait`**, which would block the redirect path. Use `DropWrite` and count drops.
 - **An unhandled exception in a `BackgroundService` stops the whole host** (`BackgroundServiceExceptionBehavior.StopHost`). Catch per item.
 - **`.claudeignore` does nothing.** Secrets are protected by `Read(...)` deny rules in `.claude/settings.json`.
-- **Microsoft.Data.SqlClient 6+ needs `Microsoft.Data.SqlClient.Extensions.Azure`** for `Active Directory Default`, or it fails at runtime with "Cannot find an authentication provider".
+- **Microsoft.Data.SqlClient 7+ (not 6) needs `Microsoft.Data.SqlClient.Extensions.Azure`** for `Active Directory Default`, or it fails at runtime with "Cannot find an authentication provider". EF Core 10.0.12 brings SqlClient 6.1.6, which still depends on `Azure.Identity` and contains `ActiveDirectoryAuthenticationProvider`, so no package is needed today; every `Extensions.Azure` version pairs with SqlClient 7.x. A Learn breaking-change page says "starting in 6.0"; the nuspecs and the SqlClient 7.0.0 release notes say 7.0 (AI log 013, ADR-0006). Add the package when SqlClient 7 arrives.
 - **Azure SQL free offer bills vCore-seconds whenever the DB is online.** Health probes that touch the DB prevent auto-pause and can burn the month in days. `/health/live` must not touch the DB.
 - **Windows is case-insensitive:** `Docs` and `docs` are one folder, and a folder can't be renamed while a shell's cwd is inside it. Start Claude Code from the repo root.
 - **Newly installed CLIs (docker, azd) are not on PATH in an already-open shell.** Restart the terminal/Claude Code.
@@ -153,3 +153,6 @@ azd up / azd down                          # cloud deploy / teardown
 - **TestServer leaves `HttpContext.Connection.RemoteIpAddress` null** (observed on .NET 10, AI log 010). Every `WebApplicationFactory` request therefore lands in the rate limiter's `"unknown"` fallback partition, so integration tests cannot show per-IP separation; they only show the limit itself. A null peer also makes the forwarded-headers middleware skip its known-proxy check, so a forwarded-headers test passes whether or not `KnownIPNetworks`/`KnownProxies` are cleared; `PublicUrlTests` sets a non-loopback peer with a startup filter to make the lists matter (AI log 011).
 - **`ForwardedHeadersOptions.KnownNetworks` is obsolete in .NET 10** (`ASPDEPR005`, an error under `TreatWarningsAsErrors`). Use `KnownIPNetworks` (`System.Net.IPNetwork`). The proxy/load-balancer docs page still shows `KnownNetworks.Clear()`; the breaking-change page has the new name (AI log 011).
 - **`[Url]` is a prefix check** (`http://`, `https://`, `ftp://`), not URL validation, and `Uri.TryCreate` trims whitespace (above). Any option that is later joined into a URL as a raw string must be validated on the raw string (`PublicUrlOptions.IsValidBaseUrl`, caught by code review in AI log 011).
+- **`bicep lint` exits 0 when it reports warnings** (bicep 0.47.16, AI log 013). CI greps its output for `: Warning ` / `: Error ` to fail the job.
+- **`azd monitor` only opens Application Insights.** With no App Insights resource (B6), use the portal's Log stream / Logs on the container app instead.
+- **`azd provision --preview --no-prompt` needs `AZURE_SUBSCRIPTION_ID`** in the azd environment; without it the preview stops at "prompt required" (after downloading bicep to `~/.azd/bin`, which is then usable for local `bicep lint`).

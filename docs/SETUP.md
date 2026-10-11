@@ -115,6 +115,71 @@ docker compose down        # keep the data volume
 docker compose down -v     # also delete it (needed to change the SA password)
 ```
 
+## Deploy to Azure
+
+Optional; nothing above needs it. Decisions and their reasons are in [ADR-0006](adr/0006-azure-hosting-and-migrations.md).
+
+**What gets created** (one resource group, `rg-<environment name>`): a Container Apps environment (consumption) with one container app, an Azure SQL logical server with one **free-offer** serverless database, a Container Registry (Basic), a Log Analytics workspace, a user-assigned managed identity, an email action group, a metric alert on the database's free allowance and a monthly budget. No password or key is created or stored anywhere: SQL is Entra-only and the app signs in with its managed identity.
+
+### Prerequisites
+
+| Tool | Why |
+|---|---|
+| Azure Developer CLI (`azd`) | Provisions `infra/` and deploys the image ([install](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)) |
+| Docker Desktop (running) | `azd` builds `src/UrlShortener.Api/Dockerfile` locally and pushes it to the registry |
+| An Azure subscription | Owner or Contributor + User Access Administrator on it (the template creates a role assignment) |
+
+To build in the registry instead of locally (no Docker needed), set `remoteBuild: true` under `docker:` in [`azure.yaml`](../azure.yaml). Not tested here; ACR Tasks can be unavailable on some subscription types, and `azd` then falls back to a local build.
+
+### Deploy
+
+```bash
+azd auth login
+azd up
+```
+
+`azd up` asks for:
+
+1. an **environment name** (for example `urlshortener`): names the resource group and seeds every resource name;
+2. the **subscription** and the **location** (any region with Container Apps and Azure SQL; the free-offer database fixes the region for later free databases in the subscription);
+3. **`alertEmail`**: where the cost alerts go. It has no default and is stored only in the gitignored `.azure/<env>/` folder.
+
+It then provisions (first run: several minutes), builds and pushes the image, and points the app at it. The app's address is printed and saved as `API_BASE_URL`:
+
+```bash
+API=$(azd env get-value API_BASE_URL)
+curl -i $API/health/live
+curl -i -X POST $API/api/links -H "Content-Type: application/json" -d '{"url":"https://example.com/docs"}'
+CODE=$(curl -s -X POST $API/api/links -H "Content-Type: application/json" \
+  -d '{"url":"https://example.com/docs"}' | sed -E 's/.*"code":"([^"]+)".*/\1/')
+curl -i $API/$CODE                    # 302
+curl -i $API/api/links/$CODE/stats    # click counted a moment later
+```
+
+`azd provision --preview` shows what would change without changing anything. After code changes, `azd deploy` rebuilds and redeploys only the image.
+
+### Cold start
+
+The app scales to zero after a few idle minutes, and the database auto-pauses after 15 idle minutes. The first request after idle therefore starts a container, runs the startup migration check, and resumes the database: it can take **tens of seconds**. `EnableRetryOnFailure` (6 retries, up to 30 s apart) covers the database resume; occasionally the very first request after a long idle may still fail once. Retry it.
+
+### Logs
+
+In the portal: the container app, then **Monitoring > Log stream** (live console output) or **Monitoring > Logs** (Log Analytics, table `ContainerAppConsoleLogs_CL`; system events such as probe failures in `ContainerAppSystemLogs_CL`). `azd monitor` does not help here: it opens Application Insights, which this deployment does not create (operational telemetry is issue #28). EF Core SQL command logging is off (`Warning`, issue #25) to keep log volume and cost down.
+
+### Cost
+
+- **Idle: near zero.** No replica runs (scale to zero, inside the Container Apps monthly free grant), the database is paused (free offer: 100,000 vCore-seconds and 32 GB per month), and Log Analytics ingests almost nothing. The **one fixed cost is the Container Registry Basic tier** (a few US dollars a month; exact price not fetched).
+- **Left running or under load:** container vCPU/memory beyond the free grant, Log Analytics ingestion beyond its free allowance (capped at 0.5 GB/day), registry storage. **Database compute cannot bill**: when the free allowance runs out, the database pauses until the next month (`freeLimitExhaustionBehavior: AutoPause`); a container that starts in that state exits at the startup migration and is restarted by the platform, so the address answers with platform errors until the allowance resets (ADR-0006).
+- **Alerts** (email to `alertEmail`): the free allowance falls below 20 %; actual cost passes 80 % of the monthly budget (`monthlyBudget`, default 10). Alerts notify only; they do not stop anything.
+
+### Tear down
+
+```bash
+azd down --force --purge
+```
+
+Deletes the resource group and everything in it (`--force`: no confirmation prompt; `--purge`: permanently deletes resources that would otherwise stay soft-deleted, such as key vaults; none are created here, it is there so the command stays correct if one is added). **Tear down about one week after the reviewer finishes**; set a calendar reminder when you deploy.
+
 ## Troubleshooting
 
 | Symptom | Cause and fix |
