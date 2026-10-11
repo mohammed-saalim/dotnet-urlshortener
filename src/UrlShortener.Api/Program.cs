@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
+using UrlShortener.Api.Analytics;
 using UrlShortener.Api.Data;
 using UrlShortener.Api.Links;
 using UrlShortener.Api.Redirect;
@@ -17,6 +18,9 @@ builder.Services.AddDbContext<LinksDbContext>(options => options.UseSqlServer(
 // Only /health/ready runs this (tag filter below); /health/live must never open a connection, or probes keep the
 // Azure SQL free-offer database from auto-pausing.
 builder.Services.AddHealthChecks().AddDbContextCheck<LinksDbContext>(tags: ["ready"]);
+// Click analytics (ADR-0004): the redirect enqueues, the hosted service batch-inserts.
+builder.Services.AddSingleton(new ClickQueue());
+builder.Services.AddHostedService<ClickWriterService>();
 
 var app = builder.Build();
 

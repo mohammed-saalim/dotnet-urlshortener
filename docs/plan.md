@@ -103,7 +103,7 @@ No auth (recorded assumption: internal/demo; API-key seam noted as limitation).
 ## Data model
 
 - `Links`: `Id bigint identity PK`, `Code varchar(10) COLLATE Latin1_General_100_CS_AS UNIQUE`, `OriginalUrl nvarchar(2048)`, `IsCustomAlias bit`, `CreatedAt datetimeoffset`, `ExpiresAt datetimeoffset?`, `DeletedAt datetimeoffset?`. Index on `Code`. (Changed from `datetime2` in G2: `datetimeoffset` keeps the UTC offset, which matters for expiry semantics; see AI log 002.)
-- `Clicks` (brownfield): `Id bigint identity`, `LinkId FK`, `OccurredAt datetime2`, `ReferrerHost nvarchar(253)?`, `UserAgent nvarchar(256)?` (truncated). **No raw IP** (privacy decision recorded in ADR; truncated/hashed IP listed as a future option). Index `(LinkId, OccurredAt)`.
+- `Clicks` (brownfield): `Id bigint identity`, `LinkId FK`, `OccurredAt datetimeoffset` (matches `Links`; corrected in B2), `ReferrerHost nvarchar(253)?` (host only), `UserAgent nvarchar(256)?` (truncated). **No IP column** (ADR-0004; truncated/hashed IP listed as a future option). Index `(LinkId, OccurredAt)`.
 
 ---
 

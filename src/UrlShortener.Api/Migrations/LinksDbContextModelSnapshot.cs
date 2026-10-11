@@ -22,6 +22,35 @@ namespace UrlShortener.Api.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("UrlShortener.Api.Analytics.Click", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("LinkId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ReferrerHost")
+                        .HasMaxLength(253)
+                        .HasColumnType("nvarchar(253)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LinkId", "OccurredAt");
+
+                    b.ToTable("Clicks");
+                });
+
             modelBuilder.Entity("UrlShortener.Api.Links.Link", b =>
                 {
                     b.Property<long>("Id")
@@ -60,6 +89,15 @@ namespace UrlShortener.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("Links");
+                });
+
+            modelBuilder.Entity("UrlShortener.Api.Analytics.Click", b =>
+                {
+                    b.HasOne("UrlShortener.Api.Links.Link", null)
+                        .WithMany()
+                        .HasForeignKey("LinkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }
