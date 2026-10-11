@@ -164,6 +164,25 @@ Live check of the trimmed query (P3D), each returning the 410 request and its SQ
 ```
 While applying the fix, a wrongly escaped backslash in `workbook.json` failed `bicep build` (`BCP186: Unable to parse literal JSON value`): the `loadJsonContent` safety net working as intended. After the fix: `bicep build` exit 0, `bicep lint` exit 0 with no diagnostics.
 
+## Portal check (engineer, after `azd provision`)
+
+- **Listed and rendered:** "URL shortener support" appears under the App Insights resource's Workbooks; exactly one workbook in the resource group (ARM list: `1046121b-...`, `sourceId` the component, `fallbackResourceIds` injected).
+- **Every panel failed in the engineer's normal browser** with "Query failed: could not connect to server", while the Logs blade in the same tab returned rows. The workbook's App Insights queries go to `api.applicationinsights.io`; Logs goes to the workspace. In an InPrivate window (no extensions) the panels loaded, so a blocker extension was the cause. Recorded in SETUP.md and CLAUDE.md §9.
+- **Panel 1, end to end:** a link was created, deleted and opened on Azure:
+  ```
+  HTTP/1.1 410 Gone
+  cache-control: no-store
+  {"title":"This short link has expired or been deleted.","status":410,"traceId":"00-d3a1e06c953d045c73bdf55e9a6df33f-42f50ba8d6a46cb8-01"}
+  ```
+  Pasting that full value showed the 410 request and its SQL call. The docs said the id ends in `-00`; on Azure it ends in `-01` (the sampled flag), so the text now says `<flags>`. The parse takes the second segment, so either works.
+- **Edited after the check (engineer asked whether the panel gives valuable info):** it showed that the request happened, not which link or where the time went. Added `duration` and `url`. Live, the same trace:
+  ```
+  timestamp                    | itemType   | name                    | resultCode | duration | url
+  2026-10-11T20:51:46.5221102Z | request    | GET /{code:regex(...)}  | 410        | 482.6788 | http://<app>/7XcwRgi
+  2026-10-11T20:51:46.8137683Z | dependency | SQL: urlshortener       |            | 3.6247   |
+  ```
+  The request took 483 ms, the SQL call 3.6 ms, starting about 290 ms in: the time went before the query (the first request after the app woke), not to the database.
+
 ## Not verified here (needs the engineer's `azd provision`)
 - That the workbook renders: the parameter-visibility form, `make-series` with `{TimeRange:start}`/`{TimeRange:end}`, and the time charts were checked against Microsoft's docs and workbooks, not in a portal.
 - That it is listed under the App Insights resource's **Workbooks** (depends on `sourceId` matching the resource id as the portal compares it).

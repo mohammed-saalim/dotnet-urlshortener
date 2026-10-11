@@ -53,7 +53,7 @@
             "name": "TraceId",
             "label": "traceId",
             "type": 1,
-            "description": "The traceId from an error response: 00-<trace id>-<span id>-00, or just the 32-character trace id."
+            "description": "The traceId from an error response: 00-<trace id>-<span id>-<flags> (flags is 01 on Azure), or just the 32-character trace id."
           }
         ],
         "style": "pills",
@@ -65,7 +65,7 @@
     {
       "type": 1,
       "content": {
-        "json": "### 1. Find a request by traceId\nA caller quotes the `traceId` from an error response: what happened to that request, step by step (request, SQL calls, log lines, exceptions)? Paste it above."
+        "json": "### 1. Find a request by traceId\nA caller quotes the `traceId` from an error response: what happened to that request, step by step (request, SQL calls, log lines, exceptions)? Paste it above. `url` shows which short link; `duration` (ms) shows where the time went."
       },
       "name": "panel 1 header"
     },
@@ -73,7 +73,7 @@
       "type": 3,
       "content": {
         "version": "KqlItem/1.0",
-        "query": "let raw = trim(@\"\\s+\", \"{TraceId}\");\nlet wanted = iff(raw startswith \"00-\", tostring(split(raw, \"-\")[1]), raw);\nunion requests, dependencies, traces, exceptions\n| where operation_Id == wanted\n| project timestamp, itemType, name, resultCode, message\n| order by timestamp asc",
+        "query": "let raw = trim(@\"\\s+\", \"{TraceId}\");\nlet wanted = iff(raw startswith \"00-\", tostring(split(raw, \"-\")[1]), raw);\nunion requests, dependencies, traces, exceptions\n| where operation_Id == wanted\n| project timestamp, itemType, name, resultCode, duration, url, message\n| order by timestamp asc",
         "size": 0,
         "queryType": 0,
         "resourceType": "microsoft.insights/components",
