@@ -57,3 +57,20 @@ Measured for B5 (#18) with [`perf/redirect-load.js`](../perf/redirect-load.js) (
 **What would change the decision** (and the next step, already scoped in [the brownfield impact table](scenarios/brownfield.md), B5 row): the Azure SQL round trip from Container Apps measured in B6 (the database share there will be larger than a local container's, and every read costs vCore-seconds on the free offer); more than one replica; or measured traffic with hot-code skew and sustained load. The cache would then be `IMemoryCache` (shared framework, enough for one replica; HybridCache only if stampede protection or a Redis L2 is wanted), keyed by the case-sensitive code, short TTL, storing `Id` as well as the URL for click recording, with an explicit `Remove` in `DeleteLinkEndpoint` and the tests `DeletedLinkStopsRedirectingWhenCached` and `CacheKeysAreCaseSensitive`, then this table re-run for before/after.
 
 **Limits of this measurement:** one machine with the generator co-located; a local container, not Azure SQL; one hot code; runs of 15 to 30 s. Treat the numbers as relative (lookup vs floor), not as capacity figures for Azure.
+
+### On Azure (the B6 trigger check)
+
+The first trigger above, measured on 2026-10-11 against the deployed app (centralus; one replica of 0.25 vCPU / 0.5 GiB; Azure SQL free offer, serverless 0.5–1 vCore). k6 2.3.0 ran from the same laptop over the internet, **1 VU for 30 s only**: one small replica needs no saturation test. Server-side numbers are from Application Insights, which keeps every trace since #33. Full output: [AI log 017](ai-log/017-azure-perf.md).
+
+| Measured | p50 | p95 | p99 | Source |
+|---|---|---|---|---|
+| Redirect, client side (385 requests, 11.8/s) | 94.4 ms | 105.5 ms | 201.8 ms | k6 |
+| `/health/live`, client side (floor, 1,228 requests) | 22.0 ms | 34.7 ms | 70.2 ms | k6 |
+| Redirect, server side | 6.2 ms | 80.8 ms | 85.8 ms | `requests.duration` |
+| SQL lookup inside the redirect | **1.9 ms** | 77.0 ms | 81.3 ms | `dependencies.duration` |
+
+- **The Azure SQL round trip is not the cost.** The lookup takes about 1.6–1.9 ms when nothing interferes (249 of 386 calls under 10 ms, p50 1.6 ms), against 3.5 ms for the whole lookup locally (B5).
+- **The tail is CPU, not the database.** Server-side durations are bimodal: 53 % of redirects finish under 10 ms (mostly 3–4 ms) and 33 % take 70–100 ms. The slow ones arrive about 100 ms apart, and the container peaked at 90 % of its 0.25 vCPU limit during the run (`CpuPercentage`, against 2–3 % idle). That matches Linux CFS quota throttling: 0.25 vCPU is 25 ms of CPU per 100 ms period, after which the process waits out the rest (~75 ms). The SQL span shows the stall only because it is open when the freeze happens. This is an inference from the pattern and the CPU metric; the container's throttle counters were not read.
+- **Cold start, measured:** the first `/health/ready` after idle took **22.1 s** (database resume from auto-pause), and the first create took 1.6 s server-side. SETUP's "tens of seconds" holds.
+
+**Decision unchanged: no cache.** A cache would remove about 2 ms of database time per redirect. At this size the lever for the tail is CPU (0.5 vCPU, or less work per request), and only under sustained load: one closed-loop client at 12 requests/s is already far above prototype traffic. Every lookup does wake the database and spend free vCore-seconds, but one wake costs at least the 60-minute auto-pause delay (ADR-0006), so a cache would not prevent wakes at low traffic. **Next triggers:** more than one replica, sustained real traffic with hot-code skew, or the tail mattering to a user.
