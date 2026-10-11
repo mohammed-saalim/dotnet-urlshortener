@@ -199,6 +199,13 @@ union requests, dependencies, traces, exceptions
 
 The same id opens the portal's end-to-end transaction view: **Transaction search**, then paste it. A request, its SQL calls and its log lines share the id. The click insert does not: it runs later in the background writer under its own operation (ADR-0006, "Known limitation").
 
+**Support workbook.** `azd provision` also creates a workbook (issue #44, `infra/workbook.json`): in the portal, open the Application Insights resource (`appi-...`), then **Monitoring > Workbooks**, and pick **URL shortener support**. The time range applies to panels 2-4. Each panel answers one question:
+
+1. **Find a request by traceId**: paste the `traceId` from an error response (the full `00-...-00` value or just the middle 32 characters); it runs the query above over the last 30 days. Empty until a value is entered.
+2. **Redirect outcomes**: what clicks on short links got over time, 302 (redirected), 404 (unknown code), 410 (expired or deleted). Only paths shaped like a code count; `/favicon.ico` and the like never reach the redirect route.
+3. **Rate limiting**: how often `POST /api/links/` was refused with 429.
+4. **Health**: redirect duration p50/p95 over time, and the 5xx responses (all routes) and dropped clicks in the time range.
+
 ### Cost
 
 - **Idle: near zero.** No replica runs (scale to zero, inside the Container Apps monthly free grant), the database is paused (free offer: 100,000 vCore-seconds and 32 GB per month), and Log Analytics ingests almost nothing. The **one fixed cost is the Container Registry Basic tier** (a few US dollars a month; exact price not fetched).
