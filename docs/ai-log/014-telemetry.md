@@ -218,5 +218,26 @@ Opus 5.5 (coordinator session; the engineer switched the coordinator from Fable 
 
 Tests after the fixes: 47 unit + 54 integration (no change in count).
 
+## Live checks after `azd up` (centralus, 2026-10-11, queried by the coordinator through the App Insights query API and ARM)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Connection string is a secret | ✅ secret `appinsights-connection-string`; `APPLICATIONINSIGHTS_CONNECTION_STRING secretRef=appinsights-connection-string`; `OTEL_..._DISABLE_URL_QUERY_REDACTION value=false` |
+| 2 | Create and redirect operations with a SQL dependency, no query text | ✅ `POST /api/links/` 201 ×10 (p50 11.6 ms), `GET /{code...}` 302 (p50 4.7 ms); every dependency is `SQL: urlshortener`, `isnotempty(data) = False` (19 of 19) |
+| 3 | Rate-limit rejections visible | ✅ `aspnetcore.rate_limiting.requests` policy `create`: `acquired` 10, `endpoint_limiter` 2 (11 POSTs in a burst plus one more) |
+| 4 | `urlshortener.analytics.dropped_clicks` published | ✅ 8 rows, max 0 |
+| 5 | Query redaction, client IP | ✅ `.../LSjCAo5?x=Redacted`, `client_IP 0.0.0.0` |
+| 6 | Managed-identity token request dependency | ➖ not seen: the only dependencies are SQL. Nothing to explain away |
+| 7 | No exporter errors | ✅ `traces` has only severity 1 (startup lines and `Created short link <code> for host example.com`, no URLs) |
+| 8 | No `/health/*` request rows | ✅ none (the two `/health` calls made are absent) |
+
+**Correlation:** one create shares an `operation_Id` across request → SQL dependency → log line (`32038dae...`). Error responses carry a W3C `traceId` (`00-<trace>-<span>-00`).
+
+**Two findings:**
+- The click insert runs under its own operation, so it is not linked to the redirect that queued it. The channel separates them.
+- The `traceId` a client received on one of the two 429s is **not** in `requests`; only one of the two 429 rows exists. This is consistent with rate-limited sampling (5 traces/s, ADR-0006 decision 3) dropping one request in the burst, so a trace id quoted by a client is not guaranteed to be findable.
+
+Follow-ups: sampling fixed in #33 (AI log 016); the click-to-redirect link documented as a known limitation in ADR-0006.
+
 ## Sign-off
 Reviewed the full diff, understood it, accept ownership. — <name>, YYYY-MM-DD
