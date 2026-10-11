@@ -105,6 +105,8 @@ links.MapPost("/", CreateLinkEndpoint.HandleAsync).WithName("CreateLink").WithSu
     .RequireRateLimiting(RateLimitOptions.CreatePolicy);
 links.MapGet("/{code}", GetLinkEndpoint.HandleAsync).WithName("GetLink").WithSummary("Get a short link's metadata.");
 links.MapDelete("/{code}", DeleteLinkEndpoint.HandleAsync).WithName("DeleteLink").WithSummary("Soft-delete a short link.");
+links.MapGet("/{code}/stats", GetStatsEndpoint.HandleAsync)
+    .WithName("GetLinkStats").WithSummary("Click statistics for a short link (at-most-once recording; see docs/TESTING.md).");
 app.MapGet(RedirectEndpoint.Route, RedirectEndpoint.HandleAsync)
     .WithName("RedirectToLink").WithSummary("Redirect to the link's destination.");
 
