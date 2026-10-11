@@ -144,7 +144,10 @@
         "queryType": 0,
         "resourceType": "microsoft.insights/components",
         "visualization": "timechart",
-        "timeContextFromParameter": "TimeRange"
+        "timeContextFromParameter": "TimeRange",
+        "chartSettings": {
+          "showLegend": true
+        }
       },
       "name": "panel 4 redirect duration"
     },

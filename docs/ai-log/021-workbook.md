@@ -183,10 +183,20 @@ While applying the fix, a wrongly escaped backslash in `workbook.json` failed `b
   ```
   The request took 483 ms, the SQL call 3.6 ms, starting about 290 ms in: the time went before the query (the first request after the app woke), not to the database.
 
+- **Panels 2-4 (engineer's screenshots, Incognito, last 24 hours):**
+  - Panel 2: 302 = 392, 410 = 5, 404 = 1. The 302 spike near 10 AM local is the k6 run of the Azure performance check (386 requests, 15:06 UTC, AI log 017); the fifth 410 is the end-to-end check above.
+  - Panel 3: 4 rejections near 9:40-10 AM local: one 429 from the first burst (14:41 UTC) and three from the re-check after #33 (14:56 UTC, AI log 016). The fourth 429 of the first burst was never stored (sampled out before #33), which is the gap #33 fixed.
+  - Panel 4: the p50/p95 chart and the table (5xx 0, dropped clicks 0) render. **Defect found:** the summary numbers under the chart read "p50 (Sum) 527" and "p95 (Sum) 2.97K": the chart legend sums each series over its bins, which is right for counts (panels 2-3) and meaningless for percentiles. Learn ("Chart visualizations", Legend: "the aggregation function to use for the legend") confirms the setting; its numeric values are not documented, so instead of guessing one the chart uses `"chartSettings": { "showLegend": true }` (series names and colours, no numbers), the form Microsoft's own workbooks use (`Workbooks/AKS/Node GPU/Node GPU.workbook`). `bicep build` and `bicep lint` exit 0.
+- **Warm-up, measured:** the slow first request is the app, not SQL. The same 410 opened three times straight after a cold start (query as panel 1, joined to its SQL call):
+  ```
+  request_ms | sql_ms | ms_before_sql
+  326.5      | 24.7   | 247.6
+  81.7       | 1.7    | 79.1
+  5.4        | 1.7    | 3
+  ```
+
 ## Not verified here (needs the engineer's `azd provision`)
-- That the workbook renders: the parameter-visibility form, `make-series` with `{TimeRange:start}`/`{TimeRange:end}`, and the time charts were checked against Microsoft's docs and workbooks, not in a portal.
-- That it is listed under the App Insights resource's **Workbooks** (depends on `sourceId` matching the resource id as the portal compares it).
-- That a second provision keeps one workbook.
+- Rendering, the gallery listing and the visibility rule: verified by the engineer (above). Still open: that the panel 4 legend shows names without numbers after the next `azd provision`, and that a second provision keeps one workbook (the ARM list after the first re-provision showed one).
 
 ## Gotchas encountered
 Added to CLAUDE.md §9: azd's provision preview does not list every resource (the workbook included); a KQL `let` variable named like a column (`id`) is silently shadowed by the column.
