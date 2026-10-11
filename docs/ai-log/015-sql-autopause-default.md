@@ -49,6 +49,20 @@ $ ~/.azd/bin/bicep build infra/main.bicep --stdout   -> valid ARM JSON (after th
 ```
 No application code changed, so build and tests are unaffected (CI runs them).
 
+## Live deploy (centralus, 2026-10-11, from this branch)
+`azd up`: `SUCCESS: Your application was provisioned and deployed to Azure in 2 minutes 18 seconds` (provisioning 1 min 45 s, deploy 42 s). Curls run by the coordinator against the endpoint azd printed (`<API>` below):
+```
+GET  <API>/health/live                -> 200 Healthy
+POST <API>/api/links {"url":"https://example.com/docs"}
+                                       -> 201, location: /api/links/LSjCAo5,
+                                          shortUrl "https://ca-api-...azurecontainerapps.io/LSjCAo5" (PublicUrl:BaseUrl from Bicep)
+GET  <API>/LSjCAo5                    -> 302, cache-control: private, no-store, location: https://example.com/docs
+GET  <API>/api/links/LSjCAo5/stats    -> 200 {"totalClicks":1, ... "2026-10-11","clicks":1 ...}   (click written by the background writer)
+GET  <API>/health/ready               -> 200 Healthy   (database reachable over Entra / managed identity)
+GET  <API>/health/live, Host: evil.example -> 404   (the Container Apps ingress routes by host, so the request never reaches the app's AllowedHosts check)
+```
+Database as deployed (ARM read): `GP_S_Gen5`, `status Online`, `useFreeLimit true`, `freeLimitExhaustionBehavior AutoPause`, `autoPauseDelay 60`, `minCapacity 0.5`, `maxSizeBytes 34359738368`.
+
 ## Gotchas encountered
 The three §9 entries above.
 
