@@ -18,6 +18,8 @@
     <!-- G5 health + API docs, verified on nuget.org 2026-10-10 (see docs/ai-log/005-api-surface.md) -->
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.12" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.17.14" />
+    <!-- B7 telemetry, verified on nuget.org 2026-10-10 (see docs/ai-log/014-telemetry.md) -->
+    <PackageVersion Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.6.0" />
     <PackageVersion Include="Testcontainers.MsSql" Version="4.16.0" />
     <!-- G3 endpoint tests, verified on nuget.org 2026-10-10 (see docs/ai-log/003-create-link.md) -->
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />

@@ -1,4 +1,7 @@
 using System.Net;
+using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 
 namespace UrlShortener.IntegrationTests.Health;
 
@@ -31,5 +34,16 @@ public sealed class HealthEndpointsTests(SqlServerFixture fixture) : IClassFixtu
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("Healthy", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public void NoExporterWithoutConnectionString()
+    {
+        // No APPLICATIONINSIGHTS_CONNECTION_STRING: the OpenTelemetry SDK is not registered at all (issue #28). Without
+        // the gate in Program.cs, resolving a provider would throw "A connection string was not found".
+        using var factory = new ApiFactory(UnreachableDatabase) { EnvironmentName = "Production" };
+
+        Assert.Null(factory.Services.GetService<TracerProvider>());
+        Assert.Null(factory.Services.GetService<MeterProvider>());
     }
 }

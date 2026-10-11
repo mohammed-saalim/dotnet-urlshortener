@@ -33,6 +33,21 @@ resource logs 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   }
 }
 
+// Operational telemetry (issue #28): workspace-based, so its data lands in the workspace above and the workspace's
+// 0.5 GB/day cap applies to it too (the effective cap is the lower of the component's and the workspace's; no component
+// cap is set). Client IPs are masked by default (DisableIpMasking is not set).
+resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: 'appi-${resourceToken}'
+  location: location
+  tags: tags
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logs.id
+    IngestionMode: 'LogAnalytics'
+  }
+}
+
 // Basic: the cheapest tier. No admin user; the app pulls with its managed identity (no registry password anywhere).
 resource registry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: 'cr${resourceToken}'
@@ -164,6 +179,11 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
       registries: [
         { server: registry.properties.loginServer, identity: identity.id }
       ]
+      // The connection string is documented as not secret, but anyone holding it can send telemetry into the
+      // resource; as a secret it stays out of the portal's environment-variable view.
+      secrets: [
+        { name: 'appinsights-connection-string', value: appInsights.properties.ConnectionString }
+      ]
     }
     template: {
       containers: [
@@ -177,6 +197,11 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
             // Safe only because the ingress is the sole way in; it appends exactly one X-Forwarded-For entry.
             { name: 'PublicUrl__TrustForwardedHeaders', value: 'true' }
             { name: 'AllowedHosts', value: apiFqdn }
+            // Read by the app (opt-in exporter) and the distro; unset everywhere else, so nothing else exports.
+            { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', secretRef: 'appinsights-connection-string' }
+            // Distro 1.6.0 turns OpenTelemetry's url.query redaction off unless this is already set; false keeps the
+            // values of any query string a client appends to a short link out of the request telemetry.
+            { name: 'OTEL_DOTNET_EXPERIMENTAL_ASPNETCORE_DISABLE_URL_QUERY_REDACTION', value: 'false' }
             // Single replica (maxReplicas below), so migrating at startup does not race another instance.
             { name: 'Database__MigrateOnStartup', value: 'true' }
             {

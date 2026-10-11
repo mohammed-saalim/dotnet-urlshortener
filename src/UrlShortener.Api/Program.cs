@@ -1,9 +1,11 @@
 using System.Globalization;
 using System.Threading.RateLimiting;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Instrumentation.AspNetCore;
 using Scalar.AspNetCore;
 using UrlShortener.Api.Analytics;
 using UrlShortener.Api.Data;
@@ -11,6 +13,7 @@ using UrlShortener.Api.Links;
 using UrlShortener.Api.PublicUrl;
 using UrlShortener.Api.RateLimiting;
 using UrlShortener.Api.Redirect;
+using UrlShortener.Api.Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -80,7 +83,27 @@ builder.Services.AddOptions<DatabaseOptions>().BindConfiguration(DatabaseOptions
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+// Operational telemetry (issue #28, ADR-0006): requests, failures, SQL dependencies and metrics to Application Insights.
+// Opt-in: with no connection string (local runs, every test) the OpenTelemetry SDK is not registered at all; the
+// exporter would otherwise throw "A connection string was not found". The meter exists either way, so it is testable.
+builder.Services.AddSingleton<AppMetrics>();
+if (!string.IsNullOrWhiteSpace(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
+{
+    // The distro collects Microsoft.AspNetCore.Hosting and System.Net.Http only; add the app's meter and the built-in
+    // rate-limiting meter (aspnetcore.rate_limiting.requests, tagged with policy and result).
+    builder.Services.AddOpenTelemetry().UseAzureMonitor()
+        .WithMetrics(metrics => metrics.AddMeter(AppMetrics.MeterName, "Microsoft.AspNetCore.RateLimiting"));
+
+    // Liveness probes would otherwise be most of the request rows on an idle app (cost against the daily cap, noise in
+    // Performance/Failures). The request-duration metric still counts them.
+    builder.Services.Configure<AspNetCoreTraceInstrumentationOptions>(options =>
+        options.Filter = context => !context.Request.Path.StartsWithSegments("/health", StringComparison.OrdinalIgnoreCase));
+}
+
 var app = builder.Build();
+
+// Nothing else depends on AppMetrics, so create it now: an observable instrument only exists once its meter does.
+_ = app.Services.GetRequiredService<AppMetrics>();
 
 // Forwarded headers (#9, ADR-0005 resolution): first middleware, so the rate limiter, HTTPS redirection and error
 // handling see the client's IP and scheme. Off by default: the app trusts no proxy. With TrustForwardedHeaders the
