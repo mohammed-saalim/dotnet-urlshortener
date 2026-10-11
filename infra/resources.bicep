@@ -147,13 +147,14 @@ resource database 'Microsoft.Sql/servers/databases@2023-08-01' = {
 
 // On the first provision there is no app image yet, so a public placeholder runs until `azd deploy` replaces it.
 // On later provisions, keep the image azd last deployed instead of resetting it to the placeholder.
-resource existingApi 'Microsoft.App/containerApps@2025-01-01' existing = if (apiExists) {
-  name: appName
+module apiImage 'api-image.bicep' = {
+  name: 'api-image'
+  params: {
+    name: appName
+    exists: apiExists
+    placeholder: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+  }
 }
-
-var apiImage = apiExists
-  ? existingApi!.properties.template.containers[0].image
-  : 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
 resource api 'Microsoft.App/containerApps@2025-01-01' = {
   name: appName
@@ -188,7 +189,7 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
       containers: [
         {
           name: 'api'
-          image: apiImage
+          image: apiImage.outputs.image
           resources: { cpu: json('0.25'), memory: '0.5Gi' }
           env: [
             { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }
