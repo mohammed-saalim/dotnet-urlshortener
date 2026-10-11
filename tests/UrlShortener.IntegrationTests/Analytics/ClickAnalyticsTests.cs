@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Net;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using UrlShortener.Api.Analytics;
 using UrlShortener.Api.Links;
+using UrlShortener.Api.Telemetry;
 
 namespace UrlShortener.IntegrationTests.Analytics;
 
@@ -54,6 +56,42 @@ public sealed class ClickAnalyticsTests(SqlServerFixture fixture) : IClassFixtur
 
         // Exactly 2: a drop is counted once, not by both the itemDropped callback and TryWrite's return value.
         Assert.Equal(2, queue.Dropped);
+    }
+
+    [Fact]
+    public async Task DroppedClicksAreObservable()
+    {
+        await InsertLinkAsync("Click07");
+        // Same setup as the queue-full test: one slot, no writer, so the second and third redirects are dropped.
+        using var factory = new ApiFactory(fixture.ConnectionString) { ClickQueueCapacity = 1, ClickWriterEnabled = false };
+        using var client = factory.CreateClient(NoRedirects);
+        // Only this host's meter: MeterListener is process-wide and other test hosts create a meter of the same name.
+        // AppMetrics itself is not resolved here, so the test fails if the app does not create the meter at startup.
+        var meterFactory = factory.Services.GetRequiredService<IMeterFactory>();
+        long? observed = null;
+        using var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, l) =>
+            {
+                if (ReferenceEquals(instrument.Meter.Scope, meterFactory)
+                    && instrument.Meter.Name == AppMetrics.MeterName
+                    && instrument.Name == "urlshortener.analytics.dropped_clicks")
+                {
+                    l.EnableMeasurementEvents(instrument);
+                }
+            },
+        };
+        listener.SetMeasurementEventCallback<long>((_, value, _, _) => observed = value);
+        listener.Start();
+
+        for (var i = 0; i < 3; i++)
+        {
+            Assert.Equal(HttpStatusCode.Found, (await client.GetAsync("/Click07")).StatusCode);
+        }
+
+        listener.RecordObservableInstruments();
+
+        Assert.Equal(2, observed);
     }
 
     [Fact]

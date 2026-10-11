@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
@@ -67,6 +69,40 @@ public sealed class RateLimitingTests(SqlServerFixture fixture) : IClassFixture<
 
         Assert.Equal(HttpStatusCode.OK, get.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
+    }
+
+    [Fact]
+    public async Task RateLimitRejectionIsCounted()
+    {
+        using var factory = CreateFactory(permitLimit: 1);
+        using var client = factory.CreateClient();
+        // Built-in ASP.NET Core meter (exported in Azure, issue #28). MeterListener is process-wide and test classes
+        // run in parallel, so only instruments whose meter came from this host's IMeterFactory are listened to.
+        var meterFactory = factory.Services.GetRequiredService<IMeterFactory>();
+        var measurements = new ConcurrentQueue<(long Value, Dictionary<string, object?> Tags)>();
+        using var listener = new MeterListener
+        {
+            InstrumentPublished = (instrument, l) =>
+            {
+                if (ReferenceEquals(instrument.Meter.Scope, meterFactory)
+                    && instrument.Meter.Name == "Microsoft.AspNetCore.RateLimiting"
+                    && instrument.Name == "aspnetcore.rate_limiting.requests")
+                {
+                    l.EnableMeasurementEvents(instrument);
+                }
+            },
+        };
+        listener.SetMeasurementEventCallback<long>((_, value, tags, _) =>
+            measurements.Enqueue((value, tags.ToArray().ToDictionary(t => t.Key, t => t.Value))));
+        listener.Start();
+
+        Assert.Equal(HttpStatusCode.Created, (await CreateAsync(client)).StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, (await CreateAsync(client)).StatusCode);
+
+        var rejected = Assert.Single(measurements, m => !Equals(m.Tags["aspnetcore.rate_limiting.result"], "acquired"));
+        Assert.Equal(1, rejected.Value);
+        Assert.Equal("endpoint_limiter", rejected.Tags["aspnetcore.rate_limiting.result"]);
+        Assert.Equal(RateLimitOptions.CreatePolicy, rejected.Tags["aspnetcore.rate_limiting.policy"]);
     }
 
     [Fact]

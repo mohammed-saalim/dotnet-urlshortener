@@ -45,6 +45,7 @@ public sealed class ApiFactory(string connectionString, params string[] codes) :
         // Host setting, so it is visible when Program.cs reads configuration (before the host is built).
         builder.UseSetting("ConnectionStrings:UrlShortener", connectionString);
         builder.UseSetting("PublicUrl:BaseUrl", "http://localhost"); // required at startup (#9); Settings can override
+        builder.UseSetting("APPLICATIONINSIGHTS_CONNECTION_STRING", ""); // no telemetry export from tests, even if the machine sets it (#28)
         builder.UseEnvironment(EnvironmentName);
         foreach (var (key, value) in Settings)
         {

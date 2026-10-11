@@ -119,7 +119,7 @@ docker compose down -v     # also delete it (needed to change the SA password)
 
 Optional; nothing above needs it. Decisions and their reasons are in [ADR-0006](adr/0006-azure-hosting-and-migrations.md).
 
-**What gets created** (one resource group, `rg-<environment name>`): a Container Apps environment (consumption) with one container app, an Azure SQL logical server with one **free-offer** serverless database, a Container Registry (Basic), a Log Analytics workspace, a user-assigned managed identity, an email action group, a metric alert on the database's free allowance and a monthly budget. No password or key is created or stored anywhere: SQL is Entra-only and the app signs in with its managed identity.
+**What gets created** (one resource group, `rg-<environment name>`): a Container Apps environment (consumption) with one container app, an Azure SQL logical server with one **free-offer** serverless database, a Container Registry (Basic), a Log Analytics workspace with a workspace-based Application Insights resource, a user-assigned managed identity, an email action group, a metric alert on the database's free allowance and a monthly budget. No password or key is created or stored anywhere: SQL is Entra-only and the app signs in with its managed identity.
 
 ### Prerequisites
 
@@ -164,7 +164,23 @@ The app scales to zero after a few idle minutes, and the database auto-pauses af
 
 ### Logs
 
-In the portal: the container app, then **Monitoring > Log stream** (live console output) or **Monitoring > Logs** (Log Analytics, table `ContainerAppConsoleLogs_CL`; system events such as probe failures in `ContainerAppSystemLogs_CL`). `azd monitor` does not help here: it opens Application Insights, which this deployment does not create (operational telemetry is issue #28). EF Core SQL command logging is off (`Warning`, issue #25) to keep log volume and cost down.
+In the portal: the container app, then **Monitoring > Log stream** (live console output) or **Monitoring > Logs** (Log Analytics, table `ContainerAppConsoleLogs_CL`; system events such as probe failures in `ContainerAppSystemLogs_CL`). `azd monitor --logs` opens the Application Insights logs (requests, dependencies, traces; see Telemetry below). Plain `azd monitor` means `--overview`, which needs a portal dashboard that this template does not create, so it fails. EF Core SQL command logging is off (`Warning`, issue #25) to keep log volume and cost down.
+
+### Telemetry
+
+Operational telemetry (issue #28) goes to the Application Insights resource through the Azure Monitor OpenTelemetry distro. The click analytics behind `/stats` stay in the database (ADR-0004). The app exports only when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set, which Bicep does on the container app from a secret. Local runs and tests export nothing. In the portal, open the Application Insights resource (`appi-...`), or run `azd monitor --logs` / `azd monitor --live`:
+
+- **Performance** and **Failures**: requests (named after the route template, so the redirect is one row whatever the code), their SQL dependencies (no query text), exceptions.
+- **Metrics** → metric namespace **azure.applicationinsights**: `urlshortener.analytics.dropped_clicks` (clicks lost because the queue was full; normally 0). It is exported as delta, so each point is the new drops in that interval, not the running total: use aggregation **Sum** over the time range for the total since a restart. Adding the built-in `Microsoft.AspNetCore.RateLimiting` meter exports all five of its instruments (the request counter plus queue and lease gauges and histograms); only the counter is used here. Metrics Explorer stores custom metrics without dimensions by default, so it shows `aspnetcore.rate_limiting.requests` as all create attempts, accepted and rejected together. For the rejections (the 429s), use **Logs**:
+
+  ```kusto
+  customMetrics
+  | where name == "aspnetcore.rate_limiting.requests"
+  | where tostring(customDimensions["aspnetcore.rate_limiting.result"]) != "acquired"
+  | summarize rejected = sum(valueSum) by bin(timestamp, 5m)
+  ```
+
+- Application logs (`ILogger`, same levels as the console) also go to the `traces` table, so a log line can be ingested twice: once as console output, once as telemetry. Request traces are sampled at up to 5 per second (the distro's default); logs written inside a request that was sampled out are dropped too, logs outside a request (startup, the click writer) are always sent; metrics are not sampled. App Insights data is stored in the existing Log Analytics workspace, so the 0.5 GB/day cap covers it, and `azd down` deletes it with the resource group.
 
 ### Cost
 
