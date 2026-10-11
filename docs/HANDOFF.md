@@ -18,7 +18,7 @@ Read this first when resuming (any model, any session). Keep it to one screen; u
 
 ## Next step
 1. Engineer merges #34 (#33, verified live).
-2. Measure the Azure SQL round trip from the container (B5's first cache trigger; `perf/redirect-load.js` with `BASE_URL=$API_BASE_URL`, mind the create rate limit).
+2. Done: Azure SQL round trip measured (lookup p50 1.9 ms; the tail is 0.25 vCPU throttling); still no cache (TESTING.md "On Azure", AI log 017).
 3. Day 3: A1 clarification doc + ADR-0007 (expiry → 410 vs 404, "safe"), A2 implementation, A3 perf gate (reuse `perf/redirect-load.js`), A4 ARCHITECTURE.md, ENGINEERING_SUMMARY.md, final CLAUDE.md pass.
 4. Housekeeping: `.claude/worktrees/agent-aced098cab8bdaeeb` (locked leftover directory) and the `worktree-agent-*` branches can be deleted.
 
