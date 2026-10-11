@@ -110,3 +110,41 @@ In priority order. **Question 1 must be answered before B2 starts**, because it 
 6. **Batch size and flush.** **Recommendation:** up to 100 rows per insert and no timer: the writer inserts whatever is queued as soon as it wakes. Reasoning in ADR-0004.
 7. **Retention.** **Recommendation: none for the prototype**, stated as a known gap. `Clicks` grows without bound; a scheduled delete of rows older than N days is the obvious next step.
 8. **`OccurredAt` type.** `docs/plan.md` says `datetime2`; `Links` uses `datetimeoffset` (changed in G2, AI log 002). **Recommendation: `datetimeoffset`**, and correct the plan text in B2.
+
+## Execution
+
+Everything above was written before any Day 2 code (B1, PR #20). The tasks then ran in the sequence shown, each through the same loop as Day 1: issue → branch → fresh subagent → coordinator review and gates → reviews on high-impact work → PR → engineer sign-off and merge ([`CLAUDE.md`](../../CLAUDE.md) §6). B3/B4 and B5/#9 ran in parallel worktrees. Once the service was deployed, three more tasks came out of checking it live.
+
+| Task | Issue → PR | What changed | Tests after (unit + integration) | Reviews | AI log |
+|---|---|---|---|---|---|
+| B1 | #14 → #20 | This impact analysis and ADR-0004; 8 decisions answered by the engineer | 47 + 25 (no code) | coordinator review | [007](../ai-log/007-brownfield-impact.md) |
+| B2 | #15 → #22 | `Clicks` table and migration, `ClickQueue` (bounded, `DropWrite`), `ClickWriterService`; the redirect enqueues | 47 + 30 | security + code | [008](../ai-log/008-click-analytics.md) |
+| B3 | #16 → #23 | `GET /api/links/{code}/stats` (total, 7-day series, top referrers) | 47 + 35 | security + code | [009](../ai-log/009-stats.md) |
+| B4 | #17 → #24 | Per-IP fixed window on create, 429 + `Retry-After`, ADR-0005 | 47 + 34 (parallel with B3) | security + code | [010](../ai-log/010-rate-limit.md) |
+| B5 | #18 → #26 | k6 measurement; decision: no cache | 47 + 39 | coordinator review | [012](../ai-log/012-perf-measure.md) |
+| #9 | #9 → #27 | `PublicUrl:BaseUrl` for `shortUrl`; opt-in forwarded headers | 47 + 44 | security + code | [011](../ai-log/011-public-base-url.md) |
+| B6 | #19, #25 → #29 | `azd` + Bicep (Container Apps, Azure SQL free offer, Entra-only, managed identity), Dockerfile, startup migration switch, ADR-0006 | 47 + 51 | security + code | [013](../ai-log/013-azure-infra.md) |
+| B7 | #28 → #30 | OpenTelemetry to Application Insights; dropped-clicks metric | 47 + 54 | security + code | [014](../ai-log/014-telemetry.md) |
+| Deploy fixes | #31 → #32 | Region, auto-pause delay, circular image lookup (found by the first `azd up`) | 47 + 54 | coordinator, live deploy | [015](../ai-log/015-sql-autopause-default.md) |
+| Trace sampling | #33 → #34 | Keep every trace, so a `traceId` a client quotes can be found (found live) | 47 + 54 | coordinator, live re-check | [016](../ai-log/016-trace-sampling.md) |
+| Azure perf | (small) → #35 | B5's first cache trigger measured on Azure; decision stands | 47 + 54 | coordinator review | [017](../ai-log/017-azure-perf.md) |
+
+Existing tests stayed green throughout, and none was edited: from the Day 1 merge (PR #13) to the end of Day 2, `git diff --stat` on `tests/` shows 699 lines added and none removed.
+
+## Validation
+
+**Risks named in the impact analysis, and what caught each:**
+
+| Risk (impact table above) | Check | Result |
+|---|---|---|
+| Analytics slows or breaks the redirect | `RedirectStillRedirectsWhenQueueIsFull`; k6 with the writer running | 302 with the queue full; every click stored at about 1,100 redirects/s ([TESTING.md](../TESTING.md#performance)) |
+| Clicks lost at shutdown | `ShutdownDrainsPendingClicks` | The design as briefed stored **0 of 250**; after the fix, 250 of 250 ([AI log 008](../ai-log/008-click-analytics.md)) |
+| A writer exception stops the host | `WriterSurvivesAFailedBatch` | The host keeps running ([AI log 008](../ai-log/008-click-analytics.md)) |
+| Rate limiter defaults (503, no `Retry-After`) | `RateLimitingTests` | 429 + `Retry-After`; redirect, get and delete not limited ([AI log 010](../ai-log/010-rate-limit.md)) |
+| Behind the Container Apps proxy every client looks the same | `PublicUrlTests` with a non-loopback peer | Forwarded headers only when switched on, with known-network lists cleared ([AI log 011](../ai-log/011-public-base-url.md)) |
+| Probes keep the free-offer database awake | `LiveDoesNotTouchTheDatabase`; liveness probe only, on `/health/live` | Database auto-pauses; cold start measured at 22.1 s ([TESTING.md](../TESTING.md#on-azure-the-b6-trigger-check)) |
+| A migration runs while the old image still serves | Code review of B6 | Rule added: migrations must be backward-compatible with the previous image ([ADR-0006](../adr/0006-azure-hosting-and-migrations.md)) |
+
+**Live on Azure** (centralus): create 201, redirect 302 + `private, no-store`, stats counting the click, readiness through the managed identity ([AI log 015](../ai-log/015-sql-autopause-default.md)); telemetry checks 7 of 8 passing, 1 not observed ([AI log 014](../ai-log/014-telemetry.md)); trace ids from 429s found 3 of 3 after #33 ([AI log 016](../ai-log/016-trace-sampling.md)).
+
+**What the reviews and live checks caught** beyond the authors' own tests: the rollout window (B6), an HTTPS-redirect ordering that spent two rate-limit permits per `http://` POST (B4), raw-string validation of the base URL (#9), three deploy failures that lint and preview passed (#31), and sampled-out trace ids (#33). Each is in the summary's [review table](../ENGINEERING_SUMMARY.md#what-the-reviews-caught).

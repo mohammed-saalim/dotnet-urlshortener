@@ -1,8 +1,8 @@
 # Architecture
 
-One ASP.NET Core Minimal API process (.NET 10) with one SQL Server database, run locally with `docker compose` and in Azure on Container Apps with the Azure SQL free offer. Every element below links to the decision record that explains it; this page describes the shape, not the reasons. Tools, the execution approach (how the AI work was run and reviewed) and the evidence are in [`ENGINEERING_SUMMARY.md`](ENGINEERING_SUMMARY.md).
+One ASP.NET Core Minimal API process (.NET 10) with one SQL Server database, run locally with `docker compose` and in Azure on Container Apps with the Azure SQL free offer. Every element below links to the decision record that explains it; this page describes the shape, not the reasons. The engineering system around it (tools and execution approach) is summarised [at the end](#tools-and-execution-approach); the evidence is in [`ENGINEERING_SUMMARY.md`](ENGINEERING_SUMMARY.md).
 
-Contents: [components](#components) · [request pipeline](#request-pipeline) · [create](#create-a-link) · [redirect and click write](#redirect-and-click-write) · [stats](#stats) · [data model](#data-model) · [Azure deployment](#azure-deployment) · [cross-cutting](#cross-cutting-concerns) · [decision index](#decision-index)
+Contents: [components](#components) · [request pipeline](#request-pipeline) · [create](#create-a-link) · [redirect and click write](#redirect-and-click-write) · [stats](#stats) · [data model](#data-model) · [Azure deployment](#azure-deployment) · [cross-cutting](#cross-cutting-concerns) · [tools and execution approach](#tools-and-execution-approach) · [decision index](#decision-index)
 
 ## Components
 
@@ -296,6 +296,26 @@ All options are bound with `BindConfiguration` and validated at startup (`Valida
 | Database access | Entra-only, managed identity, no password anywhere; parameterised EF queries | [ADR-0006](adr/0006-azure-hosting-and-migrations.md) |
 | Personal data | No IP stored; referrer reduced to its host; user agent truncated; no URLs or IPs in logs or telemetry | [ADR-0004](adr/0004-async-click-analytics.md), ADR-0006 "Telemetry" |
 | Container | Non-root user (`USER $APP_UID`), SDK image pinned to 10.0.101 | [AI log 013](ai-log/013-azure-infra.md) |
+
+## Tools and execution approach
+
+The application above is half the deliverable; the other half is the system that produced it. Each tool has one job, and the engineer is the only one who merges.
+
+| Tool | Role | Where it is configured |
+|---|---|---|
+| GitHub issues | Each task: intent, constraints, acceptance criteria, technical context, risk level | [issue template](../.github/ISSUE_TEMPLATE/task.md) |
+| Claude Code, coordinator session | Plans, briefs subagents, reviews every diff, re-runs gates, triages reviews, commits, opens PRs; never merges or pushes to `main` | [`CLAUDE.md`](../CLAUDE.md) §6 |
+| Claude Code, subagents | One fresh agent per issue on its own branch: implements test first where it matters, writes the AI log, reports decisions back instead of guessing; never commits | `CLAUDE.md` §6.12 |
+| `/security-review`, fresh-context `/code-review` | Independent agents on the committed diff of every high-impact change | `CLAUDE.md` §6.6 |
+| `CLAUDE.md` | Rules, conventions and §9 gotchas: memory that every session and subagent reads first | [`CLAUDE.md`](../CLAUDE.md) |
+| `.claude/settings.json` | Deny rules for secret files; Stop hook that runs the Release build and unit tests before a session can end; no attribution trailers | [`.claude/settings.json`](../.claude/settings.json) |
+| AI logs, HANDOFF | Traceability (generated / edited / rejected with reasons, real check output) and a cold-start handoff between sessions and models | [`ai-log/`](ai-log/), [`HANDOFF.md`](HANDOFF.md) |
+| Compiler and analyzers | Warnings as errors, `latest-recommended`, code style enforced in build, NuGet audit | [`Directory.Build.props`](../Directory.Build.props), [`.editorconfig`](../.editorconfig) |
+| GitHub Actions | `build-test` (build, format, tests on real SQL Server, vulnerable packages, coverage) and `bicep` (pinned lint, fails on warnings) | [`ci.yml`](../.github/workflows/ci.yml) |
+| Testcontainers, k6 | Integration tests against real SQL Server; load tests from Docker | [`TESTING.md`](TESTING.md) |
+| `azd` + Bicep, Application Insights | Reproducible deploy and teardown; live verification after each deploy | [`infra/`](../infra/), [`SETUP.md`](SETUP.md#deploy-to-azure) |
+
+**Control flow of one change:** issue → branch → subagent (tests first) → coordinator review and gates → security and code review if high-impact → PR with walkthrough and pasted output → CI → engineer reads, signs off, merges → deploy and live check where it applies. The loop diagram and how it held up are in the [engineering summary](ENGINEERING_SUMMARY.md#how-ai-was-used-and-governed).
 
 ## Decision index
 
