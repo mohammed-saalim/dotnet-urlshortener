@@ -92,7 +92,7 @@ curl -i -X POST http://localhost:5078/api/links -H "Content-Type: application/js
   -d '{"url":"https://example.com","customAlias":"MyAlias1","expiresAt":"2030-01-01T00:00:00Z"}'
 ```
 
-Expected outputs are pasted in [AI log 005](ai-log/005-api-surface.md) ("curl walkthrough"). Once `expiresAt` has passed, the redirect answers 410 like a deleted link ([ADR-0007](adr/0007-expiry-and-safety.md)); the create API only accepts a future expiry, so an expired link takes waiting to see locally.
+Expected outputs are pasted in [AI log 005](ai-log/005-api-surface.md) ("curl walkthrough"), recorded on Day 1: there the redirect after `DELETE` is a 404, which is now a 410 (live output in [AI log 019](ai-log/019-expiry-safety.md#live-check-on-azure-2026-10-11-after-azd-deploy-of-main-with-39)). Once `expiresAt` has passed, the redirect answers 410 like a deleted link ([ADR-0007](adr/0007-expiry-and-safety.md)); the create API only accepts a future expiry, so an expired link takes waiting to see locally.
 
 ## Run the tests
 
