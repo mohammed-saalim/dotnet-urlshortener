@@ -3,9 +3,10 @@
 Read this first when resuming (any model, any session). Keep it to one screen; update at the end of every session.
 
 ## Where we are
-- **Phase:** Day 1 complete once the G6 docs PR merges: G1 (#7), G2 (#8), G3 (#10), G4 (#11), G5 (#12) merged; G6 (docs: SETUP, greenfield scenario, ADR-0001..0003) written by a Sonnet agent, reviewed, PR open. Next is Day 2 (brownfield): B1 impact analysis + ADR-0004, then B2 click analytics.
-- **Branch:** `docs/06-day1-docs`. `main` = G5.
-- **Last checks run:** build -c Release 0/0, format exit 0, 47 unit + 25 integration tests, no vulnerable packages; SETUP.md cold-run in a scratch clone (result in AI log 006).
+- **Phase:** Day 2 (brownfield). Day 1 fully merged (#7, #8, #10, #11, #12, #13). B1 (#14: impact analysis + ADR-0004) written, engineer answered the open questions, PR open. Next is B2 (#15) click analytics.
+- **Branch:** `docs/07-brownfield-impact`. `main` = Day 1 complete, 72 tests.
+- **Day 2 issues:** #14 B1, #15 B2, #16 B3, #17 B4, #18 B5 (measure first, cache only if justified), #19 B6, #9 base URL. Order: B1 → B2 → B3; B4 independent; B5 after B2; #9 before B6; B6 last.
+- **Decisions taken for B2:** see the table in AI log 007 (shape = timestamp + referrer host + truncated UA; no IP; capacity 10,000; batch 100 no timer; stats 404 on deleted; `datetimeoffset`).
 - **API now complete for Day 1:** POST/GET/DELETE `/api/links`, `GET /{code}`, `/health/live|ready`, `/openapi/v1.json`, `/scalar` (Development).
 - **New issue #9 (Day 2, high-impact):** public base URL / AllowedHosts / forwarded headers before the Azure deploy.
 - **Local DB for `dotnet run`:** engineer must set `MSSQL_SA_PASSWORD` (env or `.env`) and `dotnet user-secrets set "ConnectionStrings:UrlShortener" "..."` — commands in AI log 002.
@@ -16,9 +17,9 @@ Read this first when resuming (any model, any session). Keep it to one screen; u
 See `docs/plan.md` "Decisions" and `docs/research/reports/URL shortener assignment validation.md`. ADRs 0001-0003 are written in task G6.
 
 ## Next step
-1. Engineer reviews the G6 docs PR, merges. Day 1 done.
-2. Create the Day 2 issues from `docs/plan.md` (B1-B7 plus existing #9), milestone "Day 2 - Brownfield + Azure". B1 (impact analysis doc + ADR-0004) is docs-first and high-impact (schema follows in B2): do it before any Day 2 code.
-3. Open questions carried into Day 2: production migration path (ADR-0001 consequence), public base URL (#9), whether `/health/ready` needs a down-DB test, shared `ApiFactory` per class (optional).
+1. Engineer reviews the B1 PR (ADR-0004 is the decision record for the schema B2 adds), merges.
+2. `git checkout main && git pull`, branch `feat/08-click-analytics`, delegate B2 (#15) with ADR-0004 as the spec and its five named tests as the acceptance criteria; B2 also creates `docs/TESTING.md` (loss-on-crash statement) and corrects `docs/plan.md` (`datetime2` → `datetimeoffset` for `Clicks`).
+3. Still open from Day 1: production migration path (decide in B6), public base URL (#9), optional down-DB readiness test, optional shared `ApiFactory`.
 
 ## Open questions for the engineer
 - Azure teardown date: ~1 week after the reviewer finishes (set a reminder when deploying).
