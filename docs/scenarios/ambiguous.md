@@ -42,6 +42,15 @@ Deliberately out of scope, each with its reason in ADR-0007: DNS resolution at c
 4. Docs: SETUP walkthrough (deleted → 410), TESTING coverage rows, CLAUDE.md §9 for anything surprising.
 5. `/security-review` and a fresh-context `/code-review`, then the engineer's sign-off (destination-URL validation is high-impact).
 
+## Execution
+
+| Step | Issue → PR | Who | Result |
+|---|---|---|---|
+| A1: questions, answers, ADR-0007 | #36 → #37 | Coordinator drafts; engineer answers the four questions that change behaviour | This page and [ADR-0007](../adr/0007-expiry-and-safety.md); [AI log 018](../ai-log/018-expiry-safety-decisions.md) |
+| A2: implementation | #38 → #39 | Fresh Opus subagent, test first for every rule; coordinator review and gates; then `/security-review` and a fresh `/code-review` | 137 unit + 62 integration; one HIGH bypass found by the security review and fixed test first; [AI log 019](../ai-log/019-expiry-safety.md) |
+| A3: perf gate | folded in | Coordinator | The Azure measurement (#35) stands in for it; no cache exists to compare on and off ([summary](../ENGINEERING_SUMMARY.md#performance)) |
+| A4: final docs | #40 → #41 | Fresh Opus subagent, coordinator spot-checks against sources | [`ARCHITECTURE.md`](../ARCHITECTURE.md), [`ENGINEERING_SUMMARY.md`](../ENGINEERING_SUMMARY.md) |
+
 ## Validation (filled in by A2)
 Implementation: issue #38, [AI log 019](../ai-log/019-expiry-safety.md). Each rule's test was written first and run red; the failure lines are in the AI log.
 
