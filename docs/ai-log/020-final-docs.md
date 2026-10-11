@@ -82,4 +82,4 @@ Mermaid: every block scanned for `;`, `#`, `<=`/`>=` inside labels and messages 
 - Files written on Windows came out with CRLF; normalised to LF to match `.gitattributes` (`eol=lf`).
 
 ## Sign-off
-Reviewed the full diff, understood it, accept ownership. — <name>, YYYY-MM-DD
+Reviewed and merged by the engineer in PR #41; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11

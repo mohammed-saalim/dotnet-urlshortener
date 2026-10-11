@@ -83,4 +83,4 @@ Read-deny check (Claude attempted `Read .env` with the dummy file present):
 Added to CLAUDE.md §9: vulnerable transitive package in the .NET 10 template; IDE0005 needs GenerateDocumentationFile; `attribution.commit` has no placeholders; Stop-hook pipelines need `pipefail`.
 
 ## Sign-off
-(pending engineer review of the PR, especially `.claude/settings.json` and `Directory.Build.props`)
+Reviewed and merged by the engineer in PR #7; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11

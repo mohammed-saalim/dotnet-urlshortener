@@ -299,4 +299,4 @@ Fable 5.1 (coordinator session), after the subagent's hand-back. Gates re-run by
 Tests after the fixes: 47 unit + 51 integration (one added).
 
 ## Sign-off
-Reviewed the full diff, understood it, accept ownership. — <name>, YYYY-MM-DD
+Reviewed and merged by the engineer in PR #29; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11

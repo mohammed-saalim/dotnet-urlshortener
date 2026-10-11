@@ -130,7 +130,7 @@ Build and tests were not run: no code changed.
 None added to CLAUDE.md section 9. One documentation gap noted above (`TryWrite` under `DropWrite`) is a candidate for section 9 if B2's test shows a surprise.
 
 ## Sign-off
-Pending: engineer review of the scenario doc, ADR-0004 and open question 1 before B2 starts. — Mohammed Saalim, YYYY-MM-DD
+Reviewed and merged by the engineer in PR #20; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11
 
 ## Coordinator review (before commit)
 

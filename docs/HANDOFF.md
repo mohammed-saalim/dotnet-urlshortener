@@ -8,7 +8,7 @@ Read this first when resuming (any model, any session). Keep it to one screen; u
 - **Coordinator model:** Opus 5.5 since 2026-10-10 (before B7); Fable 5.1 before that.
 - **Tests:** 199 (137 unit + 62 integration), `dotnet test -c Release`, 2026-10-11 (AI log 020).
 - **Deploy facts:** subscription refuses new SQL servers in eastus2 (centralus works); free-offer DB accepts only the default 60-min auto-pause delay; azd's `AllowAllWindowsAzureIps` reserved-word warning is a false positive; the image lookup lives in `infra/api-image.bicep` (CLAUDE.md §9).
-- **ADRs:** 0001–0004 accepted (0003 superseded in part by 0007); **0005, 0006, 0007 still "proposed"**.
+- **ADRs:** 0001–0004 accepted (0003 superseded in part by 0007); 0005, 0006, 0007 accepted on the engineer's sign-off (2026-10-11).
 - **Local DB for `dotnet run`:** `MSSQL_SA_PASSWORD` (env or `.env`) + `dotnet user-secrets set "ConnectionStrings:UrlShortener" "..."` (AI log 002). Development sets `PublicUrl:BaseUrl` and `Database:MigrateOnStartup` in `appsettings.Development.json`.
 - **GitHub repo:** https://github.com/mohammed-saalim/dotnet-urlshortener (public). Open issues: #21 (shared test container, deferred), #40 (this PR). Labels `scenario:*`, `type:*`, `risk:high-impact`.
 - **Workflow (engineer's rules):** minimal commits (no trailers), Walkthrough in every PR, one fresh subagent per issue (small known-cause fixes done by the coordinator, said in the PR); small items may skip the issue (engineer, 2026-10-11); coordinator reviews, runs gates and both reviews on high-impact work, commits, opens the PR; engineer merges.
@@ -17,8 +17,8 @@ Read this first when resuming (any model, any session). Keep it to one screen; u
 `docs/plan.md` "Decisions", ADRs 0001–0007, AI logs 001–020 (each with a coordinator review table or a checks section). Summary of all of it: `docs/ENGINEERING_SUMMARY.md`.
 
 ## Next step
-1. Engineer reviews and merges #40.
-2. Engineer sign-offs: flip ADR-0005/0006/0007 to accepted (the PR checkboxes are ticked, the ADRs and the AI-log sign-off lines are not); fill the `<name>, YYYY-MM-DD` lines in AI logs 012–019 or state that the PR is the sign-off.
+1. Done: #40 and #42 merged; ADRs 0005–0007 accepted and every AI-log sign-off line filled (engineer, 2026-10-11).
+2. **Engineer's choice:** `docs/screenshots/azure portal.png` was removed from the tree in #42 but stays in git history (subscription ID, tenant domain, bookmarks); removing it needs a history rewrite and force push, which only the engineer does.
 3. **Teardown:** `azd down --force --purge` about one week after the reviewer finishes.
 4. #21 stays deferred unless the one-container-per-class CI flake recurs.
 5. Housekeeping: `.claude/worktrees/` (leftover agent directory) and the four `worktree-agent-*` branches can be deleted.

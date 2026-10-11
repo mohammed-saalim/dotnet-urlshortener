@@ -184,7 +184,7 @@ Added to CLAUDE.md §9: `BackgroundService.StopAsync` cancels `stoppingToken` be
 - `docs/HANDOFF.md` not updated by the subagent (coordinator's end-of-session step).
 
 ## Sign-off
-(pending engineer review of the PR)
+Reviewed and merged by the engineer in PR #22; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11
 
 ## Coordinator review (before commit)
 

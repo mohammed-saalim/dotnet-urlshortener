@@ -216,7 +216,7 @@ Added to CLAUDE.md §9: generated migration `.cs` fails `EnforceCodeStyleInBuild
 - `/security-review` and a fresh-context `/code-review` before merge (high-impact: schema).
 
 ## Sign-off
-(pending engineer review of the PR: schema, migration and compose file)
+Reviewed and merged by the engineer in PR #8; I understood the change and accept ownership of it. — Mohammed Saalim, sign-off recorded 2026-10-11
 
 ## Coordinator review (before commit)
 

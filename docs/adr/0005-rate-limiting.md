@@ -1,6 +1,6 @@
 # ADR-0005: Rate-limit link creation with a per-IP fixed window, 429 + `Retry-After`
 
-- Status: proposed (rate-limit policy is high-impact; values need the engineer's sign-off in the PR)
+- Status: accepted (engineer sign-off on the policy and its values, 10 per 60 s, 2026-10-11; merged in PR #24)
 - Date: 2026-10-10
 - Deciders: Mohammed Saalim
 - AI assistance: Claude Code drafted options; decision and wording are the engineer's
