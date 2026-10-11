@@ -29,11 +29,18 @@ public sealed class ApiFactory(string connectionString, params string[] codes) :
     /// <summary>False removes the click writer, so queued clicks stay queued (queue-full test).</summary>
     public bool ClickWriterEnabled { get; init; } = true;
 
+    /// <summary>Extra configuration values (e.g. <c>RateLimiting:PermitLimit</c>), applied as host settings.</summary>
+    public IDictionary<string, string?> Settings { get; init; } = new Dictionary<string, string?>();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         // Host setting, so it is visible when Program.cs reads configuration (before the host is built).
         builder.UseSetting("ConnectionStrings:UrlShortener", connectionString);
         builder.UseEnvironment(EnvironmentName);
+        foreach (var (key, value) in Settings)
+        {
+            builder.UseSetting(key, value);
+        }
 
         builder.ConfigureTestServices(services =>
         {

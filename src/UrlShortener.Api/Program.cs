@@ -1,9 +1,13 @@
+using System.Globalization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Scalar.AspNetCore;
 using UrlShortener.Api.Analytics;
 using UrlShortener.Api.Data;
 using UrlShortener.Api.Links;
+using UrlShortener.Api.RateLimiting;
 using UrlShortener.Api.Redirect;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,6 +25,46 @@ builder.Services.AddHealthChecks().AddDbContextCheck<LinksDbContext>(tags: ["rea
 // Click analytics (ADR-0004): the redirect enqueues, the hosted service batch-inserts.
 builder.Services.AddSingleton(new ClickQueue());
 builder.Services.AddHostedService<ClickWriterService>();
+
+// Rate limit on create only (ADR-0005): fixed window per client IP.
+builder.Services.AddOptions<RateLimitOptions>().BindConfiguration(RateLimitOptions.SectionName)
+    .ValidateDataAnnotations().ValidateOnStart();
+builder.Services.AddRateLimiter(options =>
+{
+    // The default rejection is 503 with no Retry-After (CLAUDE.md section 9).
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            context.HttpContext.Response.Headers.RetryAfter =
+                ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+        }
+
+        await context.HttpContext.RequestServices.GetRequiredService<IProblemDetailsService>().TryWriteAsync(
+            new ProblemDetailsContext
+            {
+                HttpContext = context.HttpContext,
+                ProblemDetails = { Status = StatusCodes.Status429TooManyRequests, Title = "Too many requests" },
+            });
+    };
+    options.AddPolicy(RateLimitOptions.CreatePolicy, httpContext =>
+    {
+        var limit = httpContext.RequestServices.GetRequiredService<IOptions<RateLimitOptions>>().Value;
+        // Behind Container Apps ingress every client has the proxy's IP until forwarded headers are configured (#9),
+        // so there the limit is effectively global. Null (no connection address) falls back to one shared key.
+        return RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = limit.PermitLimit,
+                Window = TimeSpan.FromSeconds(limit.WindowSeconds),
+                QueueLimit = 0,
+                // AutoReplenishment is not set: GetFixedWindowLimiter forces it to false and replenishes from the
+                // partitioned limiter's shared timer (API docs remark).
+            });
+    });
+});
 
 var app = builder.Build();
 
@@ -53,8 +97,12 @@ app.UseStatusCodePages();
 
 app.UseHttpsRedirection();
 
+// After the HTTPS redirect, so an http:// request that gets a 307 does not also spend a create permit.
+app.UseRateLimiter();
+
 var links = app.MapGroup("/api/links");
-links.MapPost("/", CreateLinkEndpoint.HandleAsync).WithName("CreateLink").WithSummary("Create a short link.");
+links.MapPost("/", CreateLinkEndpoint.HandleAsync).WithName("CreateLink").WithSummary("Create a short link.")
+    .RequireRateLimiting(RateLimitOptions.CreatePolicy);
 links.MapGet("/{code}", GetLinkEndpoint.HandleAsync).WithName("GetLink").WithSummary("Get a short link's metadata.");
 links.MapDelete("/{code}", DeleteLinkEndpoint.HandleAsync).WithName("DeleteLink").WithSummary("Soft-delete a short link.");
 app.MapGet(RedirectEndpoint.Route, RedirectEndpoint.HandleAsync)
