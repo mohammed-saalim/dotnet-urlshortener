@@ -29,7 +29,7 @@ public static partial class CreateLinkEndpoint
         CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
-        var errors = CreateLinkValidator.Validate(request, now, new Uri(publicUrl.Value.BaseUrl).Host);
+        var errors = CreateLinkValidator.Validate(request, now, new Uri(publicUrl.Value.BaseUrl).IdnHost);
         if (errors.Count > 0)
         {
             return TypedResults.ValidationProblem(errors);

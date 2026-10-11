@@ -87,15 +87,25 @@ public static class CreateLinkValidator
     // arrive here as IPv4 (pinned by a unit test). A trailing dot names the same host, so it is trimmed before comparing.
     private static string? HostError(Uri uri, string publicHost)
     {
-        if (uri.HostNameType is UriHostNameType.IPv4 or UriHostNameType.IPv6)
+        // Uri calls "127.0.0.1." a DNS name; browsers drop the dot and go to the address. Re-parse without the dot so
+        // the IP rule sees it (security review of #38).
+        var host = uri.IdnHost.TrimEnd('.');
+        var hostType = uri.HostNameType;
+        if (hostType == UriHostNameType.Dns && host.Length < uri.IdnHost.Length
+            && Uri.TryCreate($"http://{host}/", UriKind.Absolute, out var trimmed))
+        {
+            hostType = trimmed.HostNameType;
+            host = trimmed.IdnHost;
+        }
+
+        if (hostType is UriHostNameType.IPv4 or UriHostNameType.IPv6)
         {
             // IdnHost has no brackets around IPv6. A literal that does not parse is rejected rather than let through.
-            return !IPAddress.TryParse(uri.IdnHost, out var address) || IsNonPublic(address)
+            return !IPAddress.TryParse(host, out var address) || IsNonPublic(address)
                 ? "Must not point to a loopback, private, link-local or unspecified address."
                 : null;
         }
 
-        var host = uri.IdnHost.TrimEnd('.');
         if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
             || host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase))
         {
@@ -116,6 +126,10 @@ public static class CreateLinkValidator
         if (address.IsIPv4MappedToIPv6)
         {
             address = address.MapToIPv4();
+        }
+        else if (address.AddressFamily == AddressFamily.InterNetworkV6 && address.ScopeId != 0)
+        {
+            address = new IPAddress(address.GetAddressBytes()); // a zone ID ([::1%251]) makes IsLoopback false
         }
 
         if (address.AddressFamily == AddressFamily.InterNetwork)

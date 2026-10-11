@@ -152,5 +152,41 @@ exit=0
 - Added to §9: `Uri` normalises shorthand IPv4 to a dotted quad; IPv6 `Host` has brackets and drops the zone ID while `IdnHost` keeps it; a trailing dot stays in `Host`.
 - Not a §9 item, but cost a rerun: integration test classes share one database, so a new link code must be unique within the class (`Click07` was taken).
 
+## Coordinator review
+Opus 5.5 (coordinator), after the subagent's hand-back. Diff read in full; gates re-run (build 0/0, format exit 0, 119 unit + 62 integration, no vulnerable packages) before committing `c5797a3` and launching both reviews on it.
+
+**`/security-review` (fresh Opus agent, committed diff): 1 HIGH finding, fixed.**
+- **Bypass with a trailing dot.** `System.Uri` classifies `127.0.0.1.` as `HostNameType.Dns`, so the IP branch was skipped. The name branch trimmed the dot only for the `localhost` and own-host comparisons, so `http://169.254.169.254./`, `http://192.168.1.1.:8080/`, `http://127.1./`, `http://2130706433./`, `http://0x7f.0.0.1./` and `http://0./` were accepted (201). Browsers (WHATWG URL) drop the dot and go to the address. The reviewer proved it with a scratch console app running the exact `HostError` logic.
+- **Fix:** `HostError` re-parses the host without its trailing dots and uses the re-parsed host type.
+- **Hardening, same pass:** an IPv6 zone ID is cleared before the range checks (`[::1%251]` made `IsLoopback` false; browsers reject zone IDs, so it was not exploitable).
+- **TDD:** `RejectsIpLiteralsHiddenByTrailingDotOrZoneId` (8 cases) was written first. Red: `Failed: 8, Passed: 0`.
+- **A mistake of mine during the fix:** the first version read `address.ScopeId` on IPv4, which throws `SocketException: The attempted operation is not supported for the type of object referenced`. 32 unit tests caught it, including every IPv4 accept and reject case. It is now guarded by `AddressFamily`.
+- **Other things the reviewer checked and found fine:** shorthand, octal and hex forms without a dot; percent-encoded and non-ASCII hosts; IPv4-mapped addresses; the own-host rule; denylist suffix matching; the 410 body and headers.
+
+**Fresh-context `/code-review`: 7 findings → 1 duplicate (fixed above), 4 fixed, 1 documented, 1 left.**
+
+| # | Finding | Outcome |
+|---|---|---|
+| 1 | Trailing dot bypass | Same as the security finding; fixed. CLAUDE.md §9 entry added. |
+| 2 | ADR-0003 says deleted → 404 and cites the renamed test | **Fixed:** status line now "superseded in part by ADR-0007"; history not rewritten (MADR). |
+| 3 | `plan.md` says "no-op default + denylist" | **Left:** the plan is the approved historical plan; ADR-0007 is the record. |
+| 4 | `Safety:DeniedHosts` entries never validated (`*.evil.example`, `https://evil.example` start the app and never match; Unicode never matches `IdnHost`) | **Fixed:** `SafetyOptions.IsValidHost` (ASCII, `Uri.CheckHostName` is Dns or IPv4) in `.Validate(...).ValidateOnStart()`, replacing a `ValidateDataAnnotations` that had nothing to check. Tests `RejectsEntriesThatCouldNeverMatch` (6 cases) and `AcceptsPlainHostEntries` (4). |
+| 5 | CGNAT, broadcast, multicast and IPv4-embedding IPv6 forms are accepted | **Documented:** added to ADR-0007's "not built" list. Each is a one-line rule; none is in the threat model's examples. |
+| 6 | Own-host rule compared `Host` (config) with `IdnHost` (destination) | **Fixed:** `IdnHost` on both sides. The missing test pinning the order of validation before reputation is left: the order is visible in four lines. |
+| 7 | `AssertGoneProblemWithNoStore` did not read the body | **Fixed:** it asserts `status` 410 and the endpoint's title, so a bare 410 filled in by `UseStatusCodePages` would fail. |
+
+Final gates after the fixes:
+```
+$ dotnet build -c Release --nologo -v q
+    0 Warning(s)
+    0 Error(s)
+$ dotnet format --verify-no-changes --no-restore; echo $?
+0
+$ dotnet test -c Release --no-build --nologo
+Passed!  - Failed: 0, Passed: 137, Total: 137 - UrlShortener.UnitTests.dll
+Passed!  - Failed: 0, Passed: 62, Total: 62 - UrlShortener.IntegrationTests.dll
+```
+An earlier run showed `2 Error(s)` and spurious failures while the code-review agent was building the same checkout at the same time (file locks). A clean rebuild had 0 errors. The lesson: don't run gates while a review agent builds the same tree.
+
 ## Sign-off
 Reviewed the full diff, understood it, accept ownership. — <name>, YYYY-MM-DD

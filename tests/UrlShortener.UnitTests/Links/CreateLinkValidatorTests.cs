@@ -158,6 +158,24 @@ public sealed class CreateLinkValidatorTests
         Assert.Equal(["url"], errors.Keys);
     }
 
+    // System.Uri classifies an IPv4 literal with a trailing dot as a DNS name, while browsers (WHATWG URL) drop the dot
+    // and go to the address. Found by the security review of #38. A zone ID must not hide loopback either.
+    [Theory]
+    [InlineData("http://127.0.0.1./")]
+    [InlineData("http://169.254.169.254./latest/meta-data/")]
+    [InlineData("http://192.168.1.1.:8080/admin")]
+    [InlineData("http://127.1./")]
+    [InlineData("http://2130706433./")]
+    [InlineData("http://0x7f.0.0.1./")]
+    [InlineData("http://0./")]
+    [InlineData("http://[::1%251]/")]
+    public void RejectsIpLiteralsHiddenByTrailingDotOrZoneId(string url)
+    {
+        var errors = CreateLinkValidator.Validate(new CreateLinkRequest(url), Now, PublicHost);
+
+        Assert.Equal(["url"], errors.Keys);
+    }
+
     // The range edges, so a rule written one octet too wide fails here.
     [Theory]
     [InlineData("http://8.8.8.8/")]

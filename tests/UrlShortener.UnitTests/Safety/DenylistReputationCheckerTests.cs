@@ -37,4 +37,27 @@ public sealed class DenylistReputationCheckerTests
 
         Assert.False(await checker.IsDeniedAsync(new Uri("https://evil.example/"), CancellationToken.None));
     }
+
+    // Startup validation of the entries: anything here would start the app and then never match (code review of #38).
+    [Theory]
+    [InlineData("*.evil.example")]
+    [InlineData("https://evil.example")]
+    [InlineData("evil.example:443")]
+    [InlineData("evil.example/path")]
+    [InlineData("bücher.example")]
+    [InlineData(" ")]
+    public void RejectsEntriesThatCouldNeverMatch(string entry)
+    {
+        Assert.False(SafetyOptions.IsValidHost(entry));
+    }
+
+    [Theory]
+    [InlineData("evil.example")]
+    [InlineData("evil.example.")]
+    [InlineData("xn--bcher-kva.example")]
+    [InlineData("203.0.113.7")]
+    public void AcceptsPlainHostEntries(string entry)
+    {
+        Assert.True(SafetyOptions.IsValidHost(entry));
+    }
 }

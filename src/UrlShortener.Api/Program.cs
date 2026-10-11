@@ -80,9 +80,10 @@ builder.Services.AddOptions<PublicUrlOptions>().BindConfiguration(PublicUrlOptio
     .ValidateOnStart();
 
 // Destination reputation (ADR-0007): a host denylist behind a seam; an external service would replace the class.
-// ValidateDataAnnotations has no attributes to check today; registered the same way as every other options class.
+// Entries must be plain host names, or a typo such as "*.evil.example" or "https://evil.example" would never match.
 builder.Services.AddOptions<SafetyOptions>().BindConfiguration(SafetyOptions.SectionName)
-    .ValidateDataAnnotations().ValidateOnStart();
+    .Validate(o => o.DeniedHosts.All(SafetyOptions.IsValidHost), SafetyOptions.DeniedHostsMessage)
+    .ValidateOnStart();
 builder.Services.AddSingleton<IUrlReputationChecker, DenylistReputationChecker>();
 
 // Startup migration switch (ADR-0006).

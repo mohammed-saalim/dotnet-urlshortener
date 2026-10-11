@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using UrlShortener.Api.Links;
 
@@ -60,7 +61,7 @@ public sealed class RedirectEndpointTests(SqlServerFixture fixture) : IClassFixt
 
         var response = await client.GetAsync("/Deleted4");
 
-        AssertGoneProblemWithNoStore(response);
+        await AssertGoneProblemWithNoStore(response);
     }
 
     // ExpiresAt == now is expired: the same boundary the create validator uses for "must be in the future".
@@ -73,7 +74,7 @@ public sealed class RedirectEndpointTests(SqlServerFixture fixture) : IClassFixt
 
         var response = await client.GetAsync("/Expired4");
 
-        AssertGoneProblemWithNoStore(response);
+        await AssertGoneProblemWithNoStore(response);
     }
 
     [Fact]
@@ -109,12 +110,17 @@ public sealed class RedirectEndpointTests(SqlServerFixture fixture) : IClassFixt
     }
 
     // 410 is cacheable by default (RFC 9110 15.5.11); no-store keeps a browser or proxy from remembering it.
-    private static void AssertGoneProblemWithNoStore(HttpResponseMessage response)
+    private static async Task AssertGoneProblemWithNoStore(HttpResponseMessage response)
     {
         Assert.Equal(HttpStatusCode.Gone, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         Assert.Null(response.Headers.Location);
         Assert.True(response.Headers.CacheControl?.NoStore);
+
+        // The endpoint's own ProblemDetails, not a bare 410 that UseStatusCodePages filled in.
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(410, problem.GetProperty("status").GetInt32());
+        Assert.Equal("This short link has expired or been deleted.", problem.GetProperty("title").GetString());
     }
 
     private async Task InsertLinkAsync(
