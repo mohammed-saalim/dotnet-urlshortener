@@ -141,7 +141,7 @@ azd up
 `azd up` asks for:
 
 1. an **environment name** (for example `urlshortener`): names the resource group and seeds every resource name;
-2. the **subscription** and the **location** (any region with Container Apps and Azure SQL; the free-offer database fixes the region for later free databases in the subscription);
+2. the **subscription** and the **location** (any region with Container Apps and Azure SQL; the free-offer database fixes the region for later free databases in the subscription). Some regions refuse new SQL servers for some subscriptions (`RegionDoesNotAllowProvisioning`; eastus2 did, centralus worked): if `azd up` fails that way, run `azd down --force --purge`, then `azd env set AZURE_LOCATION <region>` and retry;
 3. **`alertEmail`**: where the cost alerts go. It has no default and is stored only in the gitignored `.azure/<env>/` folder.
 
 It then provisions (first run: several minutes), builds and pushes the image, and points the app at it. The app's address is printed and saved as `API_BASE_URL`:
@@ -160,7 +160,7 @@ curl -i $API/api/links/$CODE/stats    # click counted a moment later
 
 ### Cold start
 
-The app scales to zero after a few idle minutes, and the database auto-pauses after 15 idle minutes. The first request after idle therefore starts a container, runs the startup migration check, and resumes the database: it can take **tens of seconds**. `EnableRetryOnFailure` (6 retries, up to 30 s apart) covers the database resume; occasionally the very first request after a long idle may still fail once. Retry it.
+The app scales to zero after a few idle minutes, and the database auto-pauses after 60 idle minutes (the only delay the free offer accepts, #31). The first request after idle therefore starts a container, runs the startup migration check, and resumes the database: it can take **tens of seconds**. `EnableRetryOnFailure` (6 retries, up to 30 s apart) covers the database resume; occasionally the very first request after a long idle may still fail once. Retry it.
 
 ### Logs
 

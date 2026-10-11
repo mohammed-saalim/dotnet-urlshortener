@@ -123,8 +123,8 @@ resource allowAzure 'Microsoft.Sql/servers/firewallRules@2023-08-01' = {
 }
 
 // Free offer: 100,000 vCore-seconds and 32 GB a month. AutoPause is the hard cost stop: when the allowance is used up
-// the database pauses until next month instead of billing. Smallest serverless size (0.5-1 vCores) and the shortest
-// auto-pause delay (15 minutes) make the allowance last longest.
+// the database pauses until next month instead of billing. Smallest serverless size (0.5-1 vCores) makes the allowance
+// last longest. No autoPauseDelay: with AutoPause on exhaustion, ARM accepts only the default (60 minutes, #31).
 resource database 'Microsoft.Sql/servers/databases@2023-08-01' = {
   parent: sqlServer
   name: databaseName
@@ -140,7 +140,6 @@ resource database 'Microsoft.Sql/servers/databases@2023-08-01' = {
     useFreeLimit: true
     freeLimitExhaustionBehavior: 'AutoPause'
     minCapacity: json('0.5')
-    autoPauseDelay: 15
     maxSizeBytes: 34359738368 // 32 GB, the free-offer data limit
     requestedBackupStorageRedundancy: 'Local'
   }
@@ -148,13 +147,14 @@ resource database 'Microsoft.Sql/servers/databases@2023-08-01' = {
 
 // On the first provision there is no app image yet, so a public placeholder runs until `azd deploy` replaces it.
 // On later provisions, keep the image azd last deployed instead of resetting it to the placeholder.
-resource existingApi 'Microsoft.App/containerApps@2025-01-01' existing = if (apiExists) {
-  name: appName
+module apiImage 'api-image.bicep' = {
+  name: 'api-image'
+  params: {
+    name: appName
+    exists: apiExists
+    placeholder: 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+  }
 }
-
-var apiImage = apiExists
-  ? existingApi!.properties.template.containers[0].image
-  : 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
 resource api 'Microsoft.App/containerApps@2025-01-01' = {
   name: appName
@@ -189,7 +189,7 @@ resource api 'Microsoft.App/containerApps@2025-01-01' = {
       containers: [
         {
           name: 'api'
-          image: apiImage
+          image: apiImage.outputs.image
           resources: { cpu: json('0.25'), memory: '0.5Gi' }
           env: [
             { name: 'ASPNETCORE_ENVIRONMENT', value: 'Production' }

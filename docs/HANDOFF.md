@@ -16,7 +16,7 @@ Read this first when resuming (any model, any session). Keep it to one screen; u
 `docs/plan.md` "Decisions", ADRs 0001–0006, AI logs 001–013 (each with a coordinator review table).
 
 ## Next step
-1. Engineer merges B7 (#28), then deploys once: `azd auth login` → `azd env new urlshortener` → `azd provision --preview` (ARM has not yet evaluated the inline image-upsert expression; on a circular-dependency error move the `existing` lookup into a small `infra/api.bicep` module) → `azd up` → paste the curl evidence (create, redirect, stats) and the B7 portal checks (AI log 014) into a follow-up comment. Set the teardown reminder (~1 week after the reviewer finishes): `azd down --force --purge`.
+1. Engineer merges B7 (#28), then deploys once: `azd auth login` → `azd env new urlshortener` → `azd provision --preview` (the inline image lookup did fail with a circular dependency on the second `azd up`; moved to `infra/api-image.bicep` in #31) → `azd up` → paste the curl evidence (create, redirect, stats) and the B7 portal checks (AI log 014) into a follow-up comment. Set the teardown reminder (~1 week after the reviewer finishes): `azd down --force --purge`.
 2. Once live: measure the Azure SQL round trip from the container (B5's first cache trigger; `perf/redirect-load.js` with `BASE_URL=$API_BASE_URL`, mind the create rate limit).
 3. Day 3: A1 clarification doc + ADR-0007 (expiry → 410 vs 404, "safe"), A2 implementation, A3 perf gate (reuse `perf/redirect-load.js`), A4 ARCHITECTURE.md, ENGINEERING_SUMMARY.md, final CLAUDE.md pass.
 4. Housekeeping: `.claude/worktrees/agent-aced098cab8bdaeeb` is a locked leftover directory to delete by hand.
