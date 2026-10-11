@@ -129,6 +129,7 @@ azd up / azd down                          # cloud deploy / teardown
 - **Azure SQL free offer bills vCore-seconds whenever the DB is online.** Health probes that touch the DB prevent auto-pause and can burn the month in days. `/health/live` must not touch the DB.
 - **Windows is case-insensitive:** `Docs` and `docs` are one folder, and a folder can't be renamed while a shell's cwd is inside it. Start Claude Code from the repo root.
 - **Newly installed CLIs (docker, azd) are not on PATH in an already-open shell.** Restart the terminal/Claude Code.
+- **Configuration keys with dots can't be `export`ed in bash** (`Logging__LogLevel__Microsoft.EntityFrameworkCore` is not a valid shell name). Use `env 'Name.With.Dots=Warning' dotnet run ...`.
 - **`.NET 8` goes out of support on 2026-11-10.** This project targets .NET 10 (LTS to 2028-11-14).
 - **The .NET 10.0.101 `webapi` template ships a vulnerable transitive package.** `Microsoft.AspNetCore.OpenApi 10.0.1` depends on `Microsoft.OpenApi >= 2.0.0` (GHSA-v5pm-xwqc-g5wc, high). With `NuGetAuditMode=all` + warnings-as-errors the first build fails. Fix: pin the transitive version in `Directory.Packages.props` (`CentralPackageTransitivePinningEnabled`).
 - **`IDE0005` (unused usings) only runs at build with `GenerateDocumentationFile=true`**, which then raises CS1591 on every public member. Both are set in `Directory.Build.props`; don't re-add them per project.

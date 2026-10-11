@@ -3,26 +3,24 @@
 Read this first when resuming (any model, any session). Keep it to one screen; update at the end of every session.
 
 ## Where we are
-- **Phase:** Day 2 (brownfield). B1 (#20) and B2 (#22) merged. B3 (#16, stats) and B4 (#17, rate limiting) were built **in parallel in isolated worktrees**: B3 is PR #23 (low risk, CI green); B4 is this branch (high-impact: both reviews run, 4 fixes; ADR-0005 stays "proposed" until the engineer signs off on 10 per 60 s). Next: B5 (#18 measure, then decide on a cache) and #9 (public base URL) before B6 (#19 Azure).
-- **Branches:** `feat/09-stats` (B3) and `feat/10-rate-limit` (B4), both from `main` at the #22 merge (77 tests). B3 adds 5 tests, B4 adds 4; whichever merges second needs a trivial rebase (adjacent lines in `Program.cs`).
-- **Resolved in B2:** `TryWrite` under `DropWrite` returns true and fires `itemDropped`; the web host stops before the writer (TestServer); `EnableRetryOnFailure` does not retry an FK failure. Writer drains on its own token (looping on `stoppingToken` lost every queued click in the red run).
-- **Day 2 issues:** #14 B1, #15 B2, #16 B3, #17 B4, #18 B5 (measure first, cache only if justified), #19 B6, #9 base URL. Order: B1 → B2 → B3; B4 independent; B5 after B2; #9 before B6; B6 last.
-- **Decisions taken for B2:** see the table in AI log 007 (shape = timestamp + referrer host + truncated UA; no IP; capacity 10,000; batch 100 no timer; stats 404 on deleted; `datetimeoffset`).
-- **API now complete for Day 1:** POST/GET/DELETE `/api/links`, `GET /{code}`, `/health/live|ready`, `/openapi/v1.json`, `/scalar` (Development).
-- **New issue #9 (Day 2, high-impact):** public base URL / AllowedHosts / forwarded headers before the Azure deploy.
-- **Local DB for `dotnet run`:** engineer must set `MSSQL_SA_PASSWORD` (env or `.env`) and `dotnet user-secrets set "ConnectionStrings:UrlShortener" "..."` — commands in AI log 002.
-- **GitHub repo:** https://github.com/mohammed-saalim/dotnet-urlshortener (public). Issues #1–#6 = Day 1 tasks G1–G6, milestones Day 1/2/3, labels `scenario:*`, `type:*`, `risk:high-impact`.
-- **Workflow changes made by the engineer during G1:** minimal commits (no trailers), a Walkthrough section in every PR, one fresh subagent per issue (CLAUDE.md §6.4, §6.5, §6.12).
+- **Phase:** Day 2 (brownfield). Merged: B1 (#20), B2 (#22), B3 (#23), B4 (#24). Built in parallel in isolated worktrees and now in PRs: **B5 (#18, `feat/12-perf-measure`, docs + k6 only, no cache: see `docs/TESTING.md` Performance)** and **#9 (`feat/11-public-base-url`, high-impact: `PublicUrl:BaseUrl` option, `TrustForwardedHeaders` switch, `appsettings.Production.json` with `AllowedHosts: localhost`)**. Merge B5 first, then #9 after sign-off; whichever lands second may need GitHub's "update branch" (both touch `CLAUDE.md` §9 and `docs/TESTING.md`, non-adjacent hunks).
+- **Tests:** `main` 86 (47 unit + 39 integration); #9 adds 5 integration (`PublicUrlTests`, one more SQL Server container per run; if CI flakes like PR #20, that is the trigger for #21).
+- **Found in B5, not fixed:** EF Core logs every SQL command at `Information` in every environment (issue #25; fold into B6).
+- **Decisions open for the engineer in PR #9:** `AllowedHosts` fail-closed placeholder vs deriving the host from `PublicUrl:BaseUrl`; `TrustForwardedHeaders=true` trusts any peer (safe only when the Container Apps ingress is the sole path in); `ForwardLimit` 1.
+- **ADR-0005** stays "proposed" until the engineer notes sign-off on 10 per 60 s (PR #24 merged without that line being updated).
+- **Local DB for `dotnet run`:** engineer must set `MSSQL_SA_PASSWORD` (env or `.env`) and `dotnet user-secrets set "ConnectionStrings:UrlShortener" "..."` — commands in AI log 002. Development now also needs `PublicUrl:BaseUrl`, set in `appsettings.Development.json` (`http://localhost:5078`).
+- **GitHub repo:** https://github.com/mohammed-saalim/dotnet-urlshortener (public). Issues: #1–#6 Day 1, #14–#19 Day 2 (B1–B6), #9 base URL, #21 shared test container (deferred), #25 EF logging. Labels `scenario:*`, `type:*`, `risk:high-impact`.
+- **Workflow (engineer's rules):** minimal commits (no trailers), Walkthrough in every PR, one fresh subagent per issue, parallel issues in `isolation: "worktree"`; coordinator reviews, runs gates, commits, opens the PR; engineer merges.
 
 ## Decisions made so far
-See `docs/plan.md` "Decisions" and `docs/research/reports/URL shortener assignment validation.md`. ADRs 0001-0003 are written in task G6.
+`docs/plan.md` "Decisions", ADRs 0001–0005, AI logs 001–012 (each with a coordinator review table). B5: no cache, triggers to revisit written in `docs/TESTING.md`.
 
 ## Next step
-1. Engineer merges #23 (B3), then the B4 PR after signing off the rate-limit values; coordinator rebases B4 if GitHub reports a conflict in `Program.cs`.
-2. Then `#9` (public base URL, `AllowedHosts`, forwarded headers; high-impact, widest blast radius per `brownfield.md`) and B5 (#18: k6 via Docker, record numbers in `docs/TESTING.md`, cache only if justified). These two are independent and can run in parallel.
-3. B6 (#19) last: azd + Bicep, Azure SQL free offer, production migration decision, the telemetry add-on noted on #19, cost guardrails, teardown reminder (~1 week after review).
-4. Remove the agent worktrees once their branches are merged: `git worktree prune` after `git worktree remove .claude/worktrees/<name>`.
-3. Still open from Day 1: production migration path (decide in B6), public base URL (#9), optional down-DB readiness test, optional shared `ApiFactory`.
+1. Engineer merges B5 (#18), then #9 after signing off the three decisions above.
+2. **B6 (#19)**: azd + Bicep (Container Apps consumption, Azure SQL free offer, Log Analytics, managed identity, passwordless SQL), production migration decision, the telemetry add-on (OpenTelemetry → App Insights, noted on #19), cost guardrails, teardown reminder (~1 week after review). Checklist from #9 and B5: set `PublicUrl__BaseUrl`, `AllowedHosts` and `PublicUrl__TrustForwardedHeaders=true`; check which `Host` the Container Apps probes send (host filtering applies to them); confirm the ingress appends exactly one `X-Forwarded-For` entry; fix #25; measure the Azure SQL round trip from the container (B5's first cache trigger).
+3. Day 3: A1 clarification doc + ADR-0006 (expiry → 410 vs 404, "safe"), A2 implementation, A3 perf gate (reuse `perf/redirect-load.js`), A4 ARCHITECTURE.md, ENGINEERING_SUMMARY.md, final CLAUDE.md pass.
+4. Housekeeping: `git worktree remove .claude/worktrees/<name>` + `git worktree prune` once branches merge; `agent-aced098cab8bdaeeb` is a locked leftover directory that needs deleting by hand.
+5. Still open from Day 1: production migration path (B6), optional down-DB readiness test, optional shared `ApiFactory`.
 
 ## Open questions for the engineer
 - Azure teardown date: ~1 week after the reviewer finishes (set a reminder when deploying).
@@ -32,3 +30,4 @@ See `docs/plan.md` "Decisions" and `docs/research/reports/URL shortener assignme
 | Date | Model | What happened |
 |---|---|---|
 | 2026-10-10 | Fable 5.1 (planning) / Opus 5.5 (research) | Read brief; four-topic research validated; plan approved; scaffold files written. |
+| 2026-10-10 | Fable 5.1 (coordinator) / Opus 5.5 (subagents) | Day 1 G1–G6 and Day 2 B1–B4 merged; B5 and #9 built in parallel worktrees and opened as PRs. |

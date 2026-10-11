@@ -33,4 +33,25 @@ Integration tests run the real app through `WebApplicationFactory` (`ApiFactory`
 
 ## Performance
 
-To be filled in by B5 (#18): k6 redirect load test, p50/p95 and requests per second, with and without a cache.
+Measured for B5 (#18) with [`perf/redirect-load.js`](../perf/redirect-load.js) (how to run: [`perf/README.md`](../perf/README.md)). Full output in [AI log 012](ai-log/012-perf-measure.md).
+
+**Setup.** One laptop: Intel Core i7-10610U (4 cores / 8 threads), 32 GB, Windows 11. The API ran in Release (`dotnet run -c Release`, `Development` environment for the startup migration) against SQL Server 2022 in Docker Desktop (WSL2), with k6 2.3.0 in a container on the same machine, so load generator, API and database share the CPU. One link, so every request hits the same hot code: the best case for any cache. The click writer (ADR-0004) was inserting a row per redirect throughout. `/health/live` (no database) is the floor: the same pipeline without the lookup.
+
+| Run | Requests/s | p50 | p95 | p99 | Errors |
+|---|---|---|---|---|---|
+| Redirect, 1 VU, 15 s (unloaded) | 194 | 4.54 ms | 6.91 ms | 10.98 ms | 0 % |
+| `/health/live`, 1 VU, 15 s (floor) | 788 | 1.04 ms | 1.56 ms | 2.11 ms | 0 % |
+| Redirect, 20 VUs, 30 s, run 1 (as shipped) | 1,143 | 14.68 ms | 31.61 ms | 65.23 ms | 0 % |
+| Redirect, 20 VUs, 30 s, run 2 (as shipped) | 1,080 | 16.29 ms | 31.12 ms | 46.54 ms | 0 % |
+| Redirect, 20 VUs, 30 s, EF Core logging at `Warning` | 1,014 | 17.00 ms | 36.17 ms | 52.49 ms | 0 % |
+| `/health/live`, 20 VUs, 30 s (floor) | 3,223 to 4,034 | 4.26 to 4.86 ms | 8.37 to 12.31 ms | 12.52 to 24.4 ms | 0 % |
+
+- **Reading it:** 20 VUs with no think time is a saturation test, so its latency is mostly queueing (Little's law: 20 VUs / 1,080 rps ≈ 18.5 ms, the measured average was 18.13 ms). The intrinsic cost of the lookup is the unloaded difference: about **3.5 ms at p50** (4.54 − 1.04), including EF Core, SqlClient, the round trip into the Docker VM and the click enqueue. At saturation the lookup costs about three quarters of the capacity (about 1,100 vs 3,200 to 4,000 rps). During run 2 SQL Server used about 165 % CPU and the API process about 167 % of one core; neither was pegged, the shared 8 threads were.
+- **Logging is not the bottleneck:** as shipped, EF Core logs every executed command at `Information` (39,134 `Executed DbCommand` lines in run 1). Turning it down to `Warning` did not make the redirect faster (within run-to-run noise).
+- **Analytics under load:** every redirect was stored. Clicks for the run's link equalled k6 iterations in all three 20-VU runs (34,648, 32,572 and 30,594; also confirmed by `totalClicks` from the stats endpoint), with no "clicks dropped" or "Discarded a batch" warnings, so the 10,000-item queue (ADR-0004) kept up at about 1,100 redirects/s.
+
+**Decision: no cache in B5.** The research guidance is that an in-process cache pays off when the database lookup dominates latency *and* traffic repeats hot codes. Unloaded, a redirect takes 4.5 ms at p50 and 6.9 ms at p95, of which the lookup is about 3.5 ms; at saturation the service still serves about 1,100 redirects/s on one shared laptop, orders of magnitude above what a single-replica prototype will see. A cache would buy throughput headroom that is not needed, and it brings staleness that must be handled everywhere a link changes: explicit invalidation on delete (`ExecuteUpdateAsync` tracks nothing), the expiry check after a cache hit (Day 3), and no invalidation across replicas. Whether real traffic repeats hot codes is unknown; this test assumes it does.
+
+**What would change the decision** (and the next step, already scoped in [the brownfield impact table](scenarios/brownfield.md), B5 row): the Azure SQL round trip from Container Apps measured in B6 (the database share there will be larger than a local container's, and every read costs vCore-seconds on the free offer); more than one replica; or measured traffic with hot-code skew and sustained load. The cache would then be `IMemoryCache` (shared framework, enough for one replica; HybridCache only if stampede protection or a Redis L2 is wanted), keyed by the case-sensitive code, short TTL, storing `Id` as well as the URL for click recording, with an explicit `Remove` in `DeleteLinkEndpoint` and the tests `DeletedLinkStopsRedirectingWhenCached` and `CacheKeysAreCaseSensitive`, then this table re-run for before/after.
+
+**Limits of this measurement:** one machine with the generator co-located; a local container, not Azure SQL; one hot code; runs of 15 to 30 s. Treat the numbers as relative (lookup vs floor), not as capacity figures for Azure.
