@@ -48,6 +48,23 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
+// Support workbook (issue #44): four panels over the telemetry above; content in workbook.json (loadJsonContent fails
+// the build on malformed JSON). The name must be a GUID: a deterministic one makes a re-provision update this workbook
+// instead of adding a copy. The component id is injected as fallbackResourceIds, so workbook.json holds no ids.
+resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = {
+  name: guid(resourceGroup().id, 'urlshortener-workbook')
+  location: location
+  tags: tags
+  kind: 'shared'
+  properties: {
+    category: 'workbook'
+    displayName: 'URL shortener support'
+    sourceId: appInsights.id
+    version: 'Notebook/1.0'
+    serializedData: string(union(loadJsonContent('workbook.json'), { fallbackResourceIds: [appInsights.id] }))
+  }
+}
+
 // Basic: the cheapest tier. No admin user; the app pulls with its managed identity (no registry password anywhere).
 resource registry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: 'cr${resourceToken}'

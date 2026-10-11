@@ -1,0 +1,167 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "## URL shortener support\nFour questions about the running service. The time range applies to panels 2-4; the traceId lookup always searches the last 30 days (the workspace retention)."
+      },
+      "name": "intro"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "0b7c6f0e-3f4b-4f63-9a52-3c1e1b1f4a01",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "label": "Time range",
+            "type": 4,
+            "isRequired": true,
+            "value": {
+              "durationMs": 86400000
+            },
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 259200000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 2592000000
+                }
+              ],
+              "allowCustom": true
+            }
+          },
+          {
+            "id": "0b7c6f0e-3f4b-4f63-9a52-3c1e1b1f4a02",
+            "version": "KqlParameterItem/1.0",
+            "name": "TraceId",
+            "label": "traceId",
+            "type": 1,
+            "description": "The traceId from an error response: 00-<trace id>-<span id>-<flags> (flags is 01 on Azure), or just the 32-character trace id."
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "### 1. Find a request by traceId\nA caller quotes the `traceId` from an error response: what happened to that request, step by step (request, SQL calls, log lines, exceptions)? Paste it above. `url` shows which short link; `duration` (ms) shows where the time went."
+      },
+      "name": "panel 1 header"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let raw = trim(@\"\\s+\", \"{TraceId}\");\nlet wanted = iff(raw startswith \"00-\", tostring(split(raw, \"-\")[1]), raw);\nunion requests, dependencies, traces, exceptions\n| where operation_Id == wanted\n| project timestamp, itemType, name, resultCode, duration, url, message\n| order by timestamp asc",
+        "size": 0,
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table",
+        "timeContext": {
+          "durationMs": 2592000000
+        }
+      },
+      "name": "panel 1 trace lookup",
+      "conditionalVisibility": {
+        "parameterName": "TraceId",
+        "comparison": "isNotEqualTo"
+      }
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "### 2. Redirect outcomes\nWhat do people get when they open a short link: 302 (redirected), 404 (unknown code), 410 (expired or deleted)?"
+      },
+      "name": "panel 2 header"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "requests\n| where name startswith \"GET /\" and name contains \"code:regex\"\n| make-series requests = count() default = 0 on timestamp from {TimeRange:start} to {TimeRange:end} step {TimeRange:grain} by resultCode",
+        "size": 0,
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart",
+        "timeContextFromParameter": "TimeRange"
+      },
+      "name": "panel 2 redirect outcomes"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "### 3. Rate limiting\nHow often is link creation (`POST /api/links/`) refused with 429 Too Many Requests?"
+      },
+      "name": "panel 3 header"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "requests\n| where name == \"POST /api/links/\" and resultCode == \"429\"\n| make-series rejected = count() default = 0 on timestamp from {TimeRange:start} to {TimeRange:end} step {TimeRange:grain}",
+        "size": 0,
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart",
+        "timeContextFromParameter": "TimeRange"
+      },
+      "name": "panel 3 create 429s"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "### 4. Health\nIs the service healthy: how fast are redirects (p50/p95, ms), and were there any 5xx responses or dropped clicks?"
+      },
+      "name": "panel 4 header"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "requests\n| where name startswith \"GET /\" and name contains \"code:regex\"\n| summarize p50 = percentile(duration, 50), p95 = percentile(duration, 95) by bin(timestamp, {TimeRange:grain})",
+        "size": 0,
+        "aggregation": 2,
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "timechart",
+        "timeContextFromParameter": "TimeRange"
+      },
+      "name": "panel 4 redirect duration"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "let errors = toscalar(requests | where toint(resultCode) >= 500 | count);\nlet dropped = toscalar(customMetrics | where name == \"urlshortener.analytics.dropped_clicks\" | summarize sum(valueSum));\nprint [\"5xx responses (all routes)\"] = errors, [\"dropped clicks\"] = coalesce(dropped, 0.0)",
+        "size": 0,
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "visualization": "table",
+        "timeContextFromParameter": "TimeRange"
+      },
+      "name": "panel 4 errors and drops"
+    }
+  ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

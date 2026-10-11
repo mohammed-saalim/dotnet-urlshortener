@@ -188,7 +188,7 @@ Operational telemetry (issue #28) goes to the Application Insights resource thro
 
 - Application logs (`ILogger`, same levels as the console) also go to the `traces` table, so a log line can be ingested twice: once as console output, once as telemetry. Every request trace is kept (`OTEL_TRACES_SAMPLER=microsoft.fixed_percentage`, `OTEL_TRACES_SAMPLER_ARG=1.0` in Bicep; the distro's default of 5 per second dropped a traced 429, #33). App Insights data is stored in the existing Log Analytics workspace, so the 0.5 GB/day cap covers it, and `azd down` deletes it with the resource group.
 
-**Find a request from the `traceId` a caller quotes.** Every error response (ProblemDetails) carries `"traceId": "00-<trace id>-<span id>-00"`. The middle 32 hex characters are the `operation_Id`. In Logs:
+**Find a request from the `traceId` a caller quotes.** Every error response (ProblemDetails) carries `"traceId": "00-<trace id>-<span id>-<flags>"` (flags is `01` on Azure, where every trace is sampled). The middle 32 hex characters are the `operation_Id`. In Logs:
 
 ```kusto
 union requests, dependencies, traces, exceptions
@@ -198,6 +198,15 @@ union requests, dependencies, traces, exceptions
 ```
 
 The same id opens the portal's end-to-end transaction view: **Transaction search**, then paste it. A request, its SQL calls and its log lines share the id. The click insert does not: it runs later in the background writer under its own operation (ADR-0006, "Known limitation").
+
+**Support workbook.** `azd provision` also creates a workbook (issue #44, `infra/workbook.json`): in the portal, open the Application Insights resource (`appi-...`), then **Monitoring > Workbooks**, and pick **URL shortener support**. The time range applies to panels 2-4. Each panel answers one question:
+
+1. **Find a request by traceId**: paste the `traceId` from an error response (the full `00-...` value or just the middle 32 characters); it runs the query above over the last 30 days, plus `duration` and `url`, so it shows which short link was opened and whether the time went to the app or to SQL. Empty until a value is entered.
+2. **Redirect outcomes**: what clicks on short links got over time, 302 (redirected), 404 (unknown code), 410 (expired or deleted). Only paths shaped like a code count; `/favicon.ico` and the like never reach the redirect route.
+3. **Rate limiting**: how often `POST /api/links/` was refused with 429.
+4. **Health**: redirect duration p50/p95 over time, and the 5xx responses (all routes) and dropped clicks in the time range.
+
+If every panel says **"Query failed: could not connect to server"** while **Logs** works, a browser extension (ad or tracker blocker) is blocking the App Insights query endpoint (`api.applicationinsights.io`), which workbook panels use and Logs does not. Open the workbook in an InPrivate window, or allow the portal in the extension (seen during the #44 check).
 
 ### Cost
 
