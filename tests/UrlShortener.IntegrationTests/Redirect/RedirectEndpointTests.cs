@@ -50,8 +50,9 @@ public sealed class RedirectEndpointTests(SqlServerFixture fixture) : IClassFixt
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
+    // ADR-0007: deleted answers 410 like expired (was 404 until #38): the code existed and is permanently gone.
     [Fact]
-    public async Task SoftDeletedCodeIsNotFound()
+    public async Task SoftDeletedCodeIsGoneWithNoStore()
     {
         await InsertLinkAsync("Deleted4", "https://example.com/", deletedAt: ApiFactory.Now.AddHours(-1));
         using var factory = new ApiFactory(fixture.ConnectionString);
@@ -59,7 +60,34 @@ public sealed class RedirectEndpointTests(SqlServerFixture fixture) : IClassFixt
 
         var response = await client.GetAsync("/Deleted4");
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        AssertGoneProblemWithNoStore(response);
+    }
+
+    // ExpiresAt == now is expired: the same boundary the create validator uses for "must be in the future".
+    [Fact]
+    public async Task CodeExpiringNowIsGoneWithNoStore()
+    {
+        await InsertLinkAsync("Expired4", "https://example.com/", expiresAt: ApiFactory.Now);
+        using var factory = new ApiFactory(fixture.ConnectionString);
+        using var client = factory.CreateClient(NoRedirects);
+
+        var response = await client.GetAsync("/Expired4");
+
+        AssertGoneProblemWithNoStore(response);
+    }
+
+    [Fact]
+    public async Task CodeExpiringAfterNowStillRedirects()
+    {
+        await InsertLinkAsync("NotYet4", "https://example.com/", expiresAt: ApiFactory.Now.AddSeconds(1));
+        using var factory = new ApiFactory(fixture.ConnectionString);
+        using var client = factory.CreateClient(NoRedirects);
+
+        var response = await client.GetAsync("/NotYet4");
+
+        Assert.Equal(HttpStatusCode.Found, response.StatusCode);
+        Assert.True(response.Headers.CacheControl?.Private);
+        Assert.True(response.Headers.CacheControl?.NoStore);
     }
 
     [Fact]
@@ -80,10 +108,27 @@ public sealed class RedirectEndpointTests(SqlServerFixture fixture) : IClassFixt
         Assert.Equal("scalar/", scalar.Headers.Location?.OriginalString);
     }
 
-    private async Task InsertLinkAsync(string code, string url, DateTimeOffset? deletedAt = null)
+    // 410 is cacheable by default (RFC 9110 15.5.11); no-store keeps a browser or proxy from remembering it.
+    private static void AssertGoneProblemWithNoStore(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.Gone, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Null(response.Headers.Location);
+        Assert.True(response.Headers.CacheControl?.NoStore);
+    }
+
+    private async Task InsertLinkAsync(
+        string code, string url, DateTimeOffset? deletedAt = null, DateTimeOffset? expiresAt = null)
     {
         await using var db = fixture.CreateDbContext();
-        db.Links.Add(new Link { Code = code, OriginalUrl = url, CreatedAt = ApiFactory.Now, DeletedAt = deletedAt });
+        db.Links.Add(new Link
+        {
+            Code = code,
+            OriginalUrl = url,
+            CreatedAt = ApiFactory.Now,
+            DeletedAt = deletedAt,
+            ExpiresAt = expiresAt,
+        });
         await db.SaveChangesAsync();
     }
 }

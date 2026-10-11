@@ -107,6 +107,21 @@ public sealed class LinkStatsTests(SqlServerFixture fixture) : IClassFixture<Sql
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
+    // ADR-0007: stats still answer for an expired link; only the redirect treats it as gone.
+    [Fact]
+    public async Task StatsForExpiredLinkAreReturned()
+    {
+        var linkId = await InsertLinkAsync("Stats05", expiresAt: ApiFactory.Now.AddDays(-1));
+        await InsertClicksAsync(linkId, (ApiFactory.Now.AddDays(-2), null));
+        using var factory = new ApiFactory(fixture.ConnectionString);
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/links/Stats05/stats");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(1, (await response.Content.ReadFromJsonAsync<LinkStatsResponse>())?.TotalClicks);
+    }
+
     [Fact]
     public async Task StatsForDeletedLinkIsNotFound()
     {
@@ -121,10 +136,18 @@ public sealed class LinkStatsTests(SqlServerFixture fixture) : IClassFixture<Sql
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
-    private async Task<long> InsertLinkAsync(string code, DateTimeOffset? deletedAt = null)
+    private async Task<long> InsertLinkAsync(
+        string code, DateTimeOffset? deletedAt = null, DateTimeOffset? expiresAt = null)
     {
         await using var db = fixture.CreateDbContext();
-        var link = new Link { Code = code, OriginalUrl = "https://example.com/", CreatedAt = ApiFactory.Now, DeletedAt = deletedAt };
+        var link = new Link
+        {
+            Code = code,
+            OriginalUrl = "https://example.com/",
+            CreatedAt = ApiFactory.Now,
+            DeletedAt = deletedAt,
+            ExpiresAt = expiresAt,
+        };
         db.Links.Add(link);
         await db.SaveChangesAsync();
         return link.Id;

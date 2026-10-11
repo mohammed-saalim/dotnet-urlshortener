@@ -13,6 +13,7 @@ using UrlShortener.Api.Links;
 using UrlShortener.Api.PublicUrl;
 using UrlShortener.Api.RateLimiting;
 using UrlShortener.Api.Redirect;
+using UrlShortener.Api.Safety;
 using UrlShortener.Api.Telemetry;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -77,6 +78,12 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddOptions<PublicUrlOptions>().BindConfiguration(PublicUrlOptions.SectionName)
     .Validate(o => PublicUrlOptions.IsValidBaseUrl(o.BaseUrl), PublicUrlOptions.BaseUrlMessage)
     .ValidateOnStart();
+
+// Destination reputation (ADR-0007): a host denylist behind a seam; an external service would replace the class.
+// ValidateDataAnnotations has no attributes to check today; registered the same way as every other options class.
+builder.Services.AddOptions<SafetyOptions>().BindConfiguration(SafetyOptions.SectionName)
+    .ValidateDataAnnotations().ValidateOnStart();
+builder.Services.AddSingleton<IUrlReputationChecker, DenylistReputationChecker>();
 
 // Startup migration switch (ADR-0006).
 builder.Services.AddOptions<DatabaseOptions>().BindConfiguration(DatabaseOptions.SectionName)
