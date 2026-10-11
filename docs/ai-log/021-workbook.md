@@ -196,7 +196,7 @@ While applying the fix, a wrongly escaped backslash in `workbook.json` failed `b
   ```
 
 ## Not verified here (needs the engineer's `azd provision`)
-- Rendering, the gallery listing and the visibility rule: verified by the engineer (above). Still open: that the panel 4 legend reads "(Max)" after the next `azd provision` (the portal's own edit showed it, unsaved), and that a second provision keeps one workbook (the ARM list after the first re-provision showed one).
+- Rendering, the gallery listing and the visibility rule: verified by the engineer (above). After the second `azd provision` (workbook modified 23:14 UTC; ARM shows `aggregation: 2`, no `chartSettings`, still one workbook), the engineer's screenshot shows "p50 (Max) 483" and "p95 (Max) 1.26K" under the chart, matching the highest point of each line. Nothing open.
 
 ## Gotchas encountered
 Added to CLAUDE.md §9: azd's provision preview does not list every resource (the workbook included); a KQL `let` variable named like a column (`id`) is silently shadowed by the column.
