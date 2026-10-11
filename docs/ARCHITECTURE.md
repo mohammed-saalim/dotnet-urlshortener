@@ -264,6 +264,7 @@ Deployed and verified live in centralus on 2026-10-11: create, redirect, stats a
 - The app's own log lines carry the short code, the destination **host**, counts, exception type and SQL error number. Never the destination URL, the referrer path or a client IP (CLAUDE.md §7). `[LoggerMessage]` source-generated methods (CA1848 is an error).
 - EF Core SQL command logging is at `Warning` (#25, [AI log 013](ai-log/013-azure-infra.md)).
 - Telemetry is opt-in by `APPLICATIONINSIGHTS_CONNECTION_STRING`; local runs and tests export nothing. Every trace is kept, so a `traceId` returned in an error body is always findable ([AI log 016](ai-log/016-trace-sampling.md)). Query strings are stored as `Redacted`; App Insights stores the client IP as `0.0.0.0`; `/health/*` is not traced ([ADR-0006, "Telemetry"](adr/0006-azure-hosting-and-migrations.md#telemetry-b7-28)).
+- A support workbook, defined in Bicep (`infra/workbook.json`, #44), puts four questions on one screen: find a request by the `traceId` a caller quotes (with its SQL calls, which link, and where the time went), redirect outcomes 302/404/410, 429s on create, and health (redirect p50/p95, 5xx, dropped clicks). How to open it: [SETUP.md](SETUP.md#deploy-to-azure).
 
 ### Health probes
 | Endpoint | Checks | Used by |
