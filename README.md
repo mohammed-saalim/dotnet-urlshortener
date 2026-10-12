@@ -7,6 +7,7 @@ A URL shortener built as an **AI-assisted, engineer-led** engineering exercise: 
 ## Live deployment
 
 **https://ca-api-fpcdm5h7cv7yi.delightfulwater-705b3797.centralus.azurecontainerapps.io**
+
 Health Check: **https://ca-api-fpcdm5h7cv7yi.delightfulwater-705b3797.centralus.azurecontainerapps.io/health/ready**
 
 Everything behind that URL is created by `azd up` from the Bicep in [`infra/`](infra/), with no portal clicks, and removed by `azd down --force --purge`. It stays up until about a week after the review. Try it:
