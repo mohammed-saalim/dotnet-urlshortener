@@ -3,7 +3,7 @@
 Read this first when resuming (any model, any session). Keep it to one screen; update at the end of every session.
 
 ## Where we are
-- **Phase:** all three scenarios done and **deployed**. Merged: Day 1 G1–G6 (#7, #8, #10–#13), Day 2 B1–B7 and fixes (#20, #22–#24, #26, #27, #29, #30, #32, #34, #35), Day 3 A1 (#37), A2 (#39), A4 (#41), then the brief cross-check (#42), sign-offs (#43) and the support workbook (#45, AI log 021), and this docs follow-up (#46). 24 PRs. No open PR after #46.
+- **Phase:** all three scenarios done and **deployed**. Merged: Day 1 G1–G6 (#7, #8, #10–#13), Day 2 B1–B7 and fixes (#20, #22–#24, #26, #27, #29, #30, #32, #34, #35), Day 3 A1 (#37), A2 (#39), A4 (#41), then the brief cross-check (#42), sign-offs (#43) and the support workbook (#45, AI log 021), and two docs follow-ups (#46; #47, the live URL and the support scenario in the README). 25 PRs. No open PR after #47.
 - **Live** in centralus (azd env `urlshortener`), `main` with #39 deployed: create, redirect 302 + `private, no-store`, stats, readiness (AI log 015), telemetry (AI log 014), every ADR-0007 rule and both 410 paths (AI log 019). Every trace kept since #33 (AI log 016). Support workbook "URL shortener support" under the App Insights resource (#45); if its panels say "could not connect to server", the browser has a blocker extension (CLAUDE.md §9).
 - **Coordinator model:** Opus 5.5 since 2026-10-10 (before B7); Fable 5.1 before that.
 - **Tests:** 199 (137 unit + 62 integration), `dotnet test -c Release`, 2026-10-11 (AI log 020).
